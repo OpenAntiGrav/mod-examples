@@ -24,10 +24,10 @@
 use core::ptr::{addr_of_mut, read_volatile, write_volatile};
 
 /// Thrust while boosting. Chosen.
-const BOOST_FACTOR: f32 = 1.6;
-/// Energy a boosting tick costs, as a share of the craft's pool (about 24 % a second).
+const BOOST_FACTOR: f32 = 1.9;
+/// Energy a boosting tick costs, as a share of the craft's pool (about 48 % a second).
 /// Chosen.
-const DRAIN_SHARE: f32 = 0.004;
+const DRAIN_SHARE: f32 = 0.008;
 /// No boost below this share of the pool: the drain alone never wrecks a craft. Chosen.
 const FLOOR_SHARE: f32 = 0.05;
 /// What an absorb gives back of the energy spent on the turbo it absorbs. The
@@ -44,7 +44,7 @@ const AI_REST: u16 = 120;
 /// Chosen.
 const ROLL_EVERY: u32 = 2;
 /// Ticks between two spark bursts at the nozzle. Chosen.
-const SPARK_EVERY: u8 = 6;
+const SPARK_EVERY: u8 = 20;
 /// The backdrop's red: 0xE0, 0x20, 0x20, opaque. Chosen.
 const RED: u32 = 0xFF20_20E0;
 
