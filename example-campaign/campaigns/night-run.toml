@@ -95,9 +95,9 @@ teams = ["Qirex"]
 # (../hillside), named `<mod id>:<path>`. Without that mod installed, this
 # campaign is not offered and the log says why. Its records and ghosts key as
 # `foreign:hillside`, the manifest's `track.id`, whichever mod carries the file.
-# The times are set from the autopilot on Pulse at Phantom (2026-10-29):
-# 30.4-30.5 s a lap, about 63 s for two from the start, so gold asks for the
-# autopilot's pace.
+# The times are set from the autopilot on Pulse at Phantom on Hillside with its
+# pads (mod-examples 0ec8b08, 2026-10-29): best lap 30.23 s, four laps in 2:01.4,
+# so about 61 s for two from the start; gold asks for the autopilot's pace.
 [[grid.event]]
 slot = [1, 1]
 id = "sprint"
@@ -108,7 +108,7 @@ class = "phantom"
 laps = 2
 # Open from the start, whatever else is done.
 unlock = { open = true }
-medals = { gold = 64.0, silver = 70.0, bronze = 80.0 }
+medals = { gold = 62.0, silver = 68.0, bronze = 78.0 }
 
 # Weapons off, the original driver on its hard rung.
 [[grid.event]]
