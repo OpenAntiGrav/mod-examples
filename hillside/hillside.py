@@ -169,6 +169,8 @@ for kind, (x, y, z) in (
 ):
     sc.cursor.location = (x, y, z)
     assert bpy.ops.oag.add_pad(kind=kind) == {"FINISHED"}
+# Pad plates over every pad, drawn with the engine's pad models: weapon plates hide when weapons are off.
+assert bpy.ops.oag.add_pad_plates(material="", lift=0.3) == {"FINISHED"}
 line.oag_cover_light = COVER_LIGHT
 
 path = scene.path_of(line, ctx.evaluated_depsgraph_get(), 0)
@@ -567,33 +569,45 @@ for band, (verts, faces) in bands.items():
     mesh_object(f"mountains {band}", verts, faces, uvs, mats[band], "both", facing=UP)
     print(f"mountains {band}: {len(faces)} quads")
 
-# Air traffic: three airships holding station over the valley (static: keyframed motion is
-# not built yet, ADR-0076 decision 10).
+# Air traffic: three airships circling the valley, keyframed (ADR-0076 decision 10), each lap of its
+# circle one loop of the animation, played on the race clock.
 ship_mat = material("airship", host("Airship.tga"), "roof")
-for n, (cx, cy, cz, heading, length) in enumerate(
-    ((-600, 900, 420, 0.4, 160), (1500, -200, 520, 2.1, 210), (-1800, -1200, 380, 4.0, 130))
+FPS = sc.render.fps
+bpy.context.preferences.edit.keyframe_new_interpolation_type = "LINEAR"
+for n, (cx, cy, cz, radius, period, length, direction) in enumerate(
+    ((-600, 900, 420, 700, 70.0, 160, 1), (1500, -200, 520, 900, 90.0, 210, -1), (-1800, -1200, 380, 600, 60.0, 130, 1))
 ):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=1.0)
     ob = ctx.active_object
     ob.scale = (length / 2, length / 7, length / 7)
-    ob.rotation_euler = (0, 0, heading)
-    ob.location = (cx, cy, cz)
-    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     me = ob.data
     uvl = me.uv_layers[0] if me.uv_layers else me.uv_layers.new(name="UVMap")
-    fwd = Vector((math.cos(heading), math.sin(heading), 0))
     for poly in me.polygons:
         for li in poly.loop_indices:
-            co = me.vertices[me.loops[li].vertex_index].co - Vector((cx, cy, cz))
-            along = co.dot(fwd) / length + 0.5
-            side = Vector((-fwd.y, fwd.x, 0))
-            ang = math.atan2(co.z, co.dot(side)) / math.tau + 0.5
-            uvl.data[li].uv = (along, ang)
+            co = me.vertices[me.loops[li].vertex_index].co
+            uvl.data[li].uv = (co.x / length + 0.5, math.atan2(co.z, co.y) / math.tau + 0.5)
     col = me.color_attributes.new("Col", "FLOAT_COLOR", "CORNER")
     me.color_attributes.active_color = col
     me.materials.append(ship_mat)
     ob.name = f"airship {n}"
     ob.oag_shadow = "none"
+    ob.rotation_mode = "XYZ"
+    keys = 24
+    frames = period * FPS
+    a0 = n * 2.1
+    for k in range(keys + 1):
+        th = a0 + direction * math.tau * k / keys
+        ob.location = (cx + radius * math.cos(th), cy + radius * math.sin(th), cz + 25 * math.sin(2 * th))
+        ob.rotation_euler = (0.0, 0.0, th + direction * math.pi / 2)
+        f = sc.frame_start + round(frames * k / keys)
+        ob.keyframe_insert("location", frame=f)
+        ob.keyframe_insert("rotation_euler", frame=f)
+    for fc in ob.animation_data.action.fcurves if hasattr(ob.animation_data.action, "fcurves") else []:
+        for kp in fc.keyframe_points:
+            kp.interpolation = "LINEAR"
+    sc.frame_set(sc.frame_start)
+    ob.oag_loop = "loop"
     ART.append(ob)
 
 # The covered bend: a roof slab over the line on pillars outside the walls.

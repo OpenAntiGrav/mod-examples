@@ -26,7 +26,7 @@ next = [0, -1]
 collision_nodes = 2
 speedup_pads = 4
 weapon_pads = 5
-art_meshes = 217
+art_meshes = 226
 
 [art]
 sky = "Data\\Environments\\03_Track\\track.vex"
