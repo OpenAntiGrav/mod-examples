@@ -1,27 +1,28 @@
 //! Energy Turbo: a pickup of its own, handed out in place of every second Turbo.
 //!
-//! - **Pick it up**: the module asks the engine (`pickup-roll`) to hand out its own
+//! - **Pick it up**: the module asks the engine (`pickup_roll`) to hand out its own
 //!   pickup in place of every second Turbo a weapon pad draws, so half the Turbos stay
 //!   the title's own. The HUD draws it with the Turbo's icon on a red backdrop
-//!   (`pickup-tint`); the engine never fires or absorbs it.
-//! - **Hold fire**: the craft boosts (`scale-thrust` above 1) and pays for it from its
-//!   shield (`shield-delta`), for as long as fire is held and the pool lasts. An AI
+//!   (`pickup_tint`); the engine never fires or absorbs it.
+//! - **Hold fire**: the craft boosts (`scale_thrust` above 1) and pays for it from its
+//!   shield (`shield_delta`), for as long as fire is held and the pool lasts. An AI
 //!   craft, which holds no button, boosts for a fixed 1 s burst when its driver fires
 //!   (where it would fire a Turbo), then rests 2 s before another.
 //!   A Turbo cue on each boost start, the title's wall sparks at the nozzle while it
 //!   runs.
 //! - **Absorb it**: the pickup is gone and half of the energy spent on it comes back.
-//! - **Speed pads**: while it is carried, a pad gives no boost (`pad-mode`) and fills
+//! - **Speed pads**: while it is carried, a pad gives no boost (`pad_mode`) and fills
 //!   the pool instead, a separate income that is not part of the absorb's half.
 //!
 //! The risk is the empty pool: the drain stops short of wrecking the craft, but a hit on
 //! a drained pool wrecks it as any hit does.
 //!
-//! OpenAntiGrav extension ABI 1 (`oag_modhost::abi`). Nothing survives a tick in this
-//! module's memory; each slot's numbers live in the 64-byte state blob the host owns.
-#![no_std]
+//! A simulation module on OpenAntiGrav's guest SDK (`oag-ext`). Nothing survives a tick
+//! in this module's memory; each slot's numbers live in the 96-byte state blob the host
+//! owns.
+#![cfg_attr(not(test), no_std)]
 
-use core::ptr::{addr_of_mut, read_volatile, write_volatile};
+use oag_ext::{Cue, Effect, Event, Extension, Observation, Pickup, Reply, Rgba, Slot, Weapon};
 
 /// Thrust while boosting. Chosen.
 const BOOST_FACTOR: f32 = 1.9;
@@ -42,230 +43,229 @@ const AI_BURST: u16 = 60;
 const AI_REST: u16 = 120;
 /// The share of the title's Turbos handed out as this pickup instead: every second.
 /// Chosen.
-const ROLL_EVERY: u32 = 2;
+const ROLL_EVERY: u8 = 2;
 /// Ticks between two spark bursts at the nozzle. Chosen.
 const SPARK_EVERY: u8 = 20;
-/// The backdrop's red: 0xE0, 0x20, 0x20, opaque. Chosen.
-const RED: u32 = 0xFF20_20E0;
-
-/// `oag_tables::weapons::Weapon::ALL`'s Turbo, plus one: the weapon rolled.
-const TURBO: u16 = 5;
-/// The craft record's code for this mod's own pickup.
-const EXTENSION: u8 = 255;
-
-// The ABI 1 layout (`oag_modhost::abi`).
-const IO_LEN: usize = 4096;
-const EVENT_COUNT_AT: usize = 24;
-const EVENTS_AT: usize = 32;
-const MAX_EVENTS: usize = 32;
-const STATE_AT: usize = EVENTS_AT + 8 * MAX_EVENTS;
-const REPLY_AT: usize = STATE_AT + 1024;
-const MAX_COMMANDS: usize = 64;
-const CRAFTS_AT: usize = REPLY_AT + 4 + 12 * MAX_COMMANDS;
-const EVENT_PICKUP_FIRE: u8 = 2;
-const EVENT_PICKUP_ABSORBED: u8 = 3;
-const EVENT_PAD_ENERGY: u8 = 4;
-const SCALE_THRUST: u8 = 1;
-const SHIELD_DELTA: u8 = 2;
-const PAD_MODE: u8 = 4;
-const PLAY_CUE: u8 = 5;
-const FIRE_EFFECT: u8 = 6;
-const PICKUP_TINT: u8 = 7;
-const PICKUP_ROLL: u8 = 9;
-const CUE_TURBO: u16 = 1;
-const CUE_ABSORB: u16 = 3;
-const EFFECT_SPARKS: u16 = 0;
-const CRAFT_PERSON: u8 = 1;
-const CRAFT_FIRE_HELD: u8 = 2;
-const CRAFT_RACING: u8 = 4;
-
-/// Grid slots: one 12-byte record each in the blob.
+/// The backdrop's red. Chosen.
+const RED: Rgba = Rgba::new(0xE0, 0x20, 0x20, 0xFF);
+/// Grid slots this mod tracks: one record each.
 const SLOTS: usize = 8;
-const RECORD: usize = 12;
 
-static mut IO: [u8; IO_LEN] = [0; IO_LEN];
-
-fn io() -> *mut u8 {
-    addr_of_mut!(IO).cast()
-}
-
-fn get_u8(at: usize) -> u8 {
-    // SAFETY: every caller indexes below `IO_LEN`.
-    unsafe { read_volatile(io().add(at)) }
-}
-
-fn put_u8(at: usize, value: u8) {
-    // SAFETY: as `get_u8`.
-    unsafe { write_volatile(io().add(at), value) }
-}
-
-fn get_u32(at: usize) -> u32 {
-    u32::from_le_bytes([get_u8(at), get_u8(at + 1), get_u8(at + 2), get_u8(at + 3)])
-}
-
-fn put_u32(at: usize, value: u32) {
-    for (i, byte) in value.to_le_bytes().into_iter().enumerate() {
-        put_u8(at + i, byte);
+oag_ext::blob! {
+    /// One slot's account of the turbo it carries.
+    #[derive(Clone, Copy, Default)]
+    pub struct Memory {
+        /// Energy spent on it so far.
+        pub spent: f32,
+        /// An AI craft's boost ticks left.
+        pub burst: u16,
+        /// It boosted last tick.
+        pub boosting: bool,
+        /// Ticks to the next spark burst.
+        pub spark: u8,
+        /// An AI craft's burst-and-rest ticks left.
+        pub rest: u16,
+        /// Keeps the record at 12 bytes, the layout the module was first built with.
+        pub _spare: u16,
     }
 }
 
-fn get_f32(at: usize) -> f32 {
-    f32::from_bits(get_u32(at))
-}
-
-/// One slot's record in the blob.
-struct Memory {
-    spent: f32,
-    burst: u16,
-    boosting: bool,
-    spark: u8,
-    rest: u16,
-}
-
-fn load(slot: usize) -> Memory {
-    let at = STATE_AT + slot * RECORD;
-    Memory {
-        spent: get_f32(at),
-        burst: u16::from_le_bytes([get_u8(at + 4), get_u8(at + 5)]),
-        boosting: get_u8(at + 6) != 0,
-        spark: get_u8(at + 7),
-        rest: u16::from_le_bytes([get_u8(at + 8), get_u8(at + 9)]),
+oag_ext::blob! {
+    /// Every slot's record.
+    pub struct Slots {
+        pub slots: [Memory; SLOTS],
     }
 }
 
-fn store(slot: usize, memory: &Memory) {
-    let at = STATE_AT + slot * RECORD;
-    put_u32(at, memory.spent.to_bits());
-    let [lo, hi] = memory.burst.to_le_bytes();
-    put_u8(at + 4, lo);
-    put_u8(at + 5, hi);
-    put_u8(at + 6, u8::from(memory.boosting));
-    put_u8(at + 7, memory.spark);
-    let [lo, hi] = memory.rest.to_le_bytes();
-    put_u8(at + 8, lo);
-    put_u8(at + 9, hi);
-}
+pub struct EnergyTurbo;
 
-struct Reply {
-    count: usize,
-}
+impl Extension for EnergyTurbo {
+    type State = Slots;
 
-impl Reply {
-    fn push(&mut self, kind: u8, slot: usize, arg: u16, value: f32, word: u32) {
-        let at = REPLY_AT + 4 + self.count * 12;
-        put_u8(at, kind);
-        put_u8(at + 1, slot as u8);
-        let [lo, hi] = arg.to_le_bytes();
-        put_u8(at + 2, lo);
-        put_u8(at + 3, hi);
-        put_u32(at + 4, value.to_bits());
-        put_u32(at + 8, word);
-        self.count += 1;
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn oag_abi() -> u32 {
-    1
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn oag_io() -> u32 {
-    io() as u32
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn tick() -> u32 {
-    // This tick's events, one bit per slot each.
-    let (mut fired, mut absorbed, mut pads) = (0_u32, 0_u32, 0_u32);
-    let events = (get_u32(EVENT_COUNT_AT) as usize).min(MAX_EVENTS);
-    for i in 0..events {
-        let at = EVENTS_AT + i * 8;
-        let slot = get_u8(at + 1);
-        if usize::from(slot) >= SLOTS {
-            continue;
-        }
-        match get_u8(at) {
-            EVENT_PICKUP_FIRE => fired |= 1 << slot,
-            EVENT_PICKUP_ABSORBED => absorbed |= 1 << slot,
-            EVENT_PAD_ENERGY => pads |= 1 << slot,
-            _ => {}
-        }
-    }
-    let mut reply = Reply { count: 0 };
-    // Race-wide; the same rule each tick keeps its count.
-    reply.push(PICKUP_ROLL, 0, TURBO, 0.0, ROLL_EVERY);
-    for slot in 0..SLOTS {
-        let craft = CRAFTS_AT + slot * 16;
-        let (pickup, flags) = (get_u8(craft), get_u8(craft + 1));
-        let (shield, max) = (get_f32(craft + 4), get_f32(craft + 8));
-        let bit = |mask: u32| mask & (1 << slot) != 0;
-        let mut memory = load(slot);
-        let mut delta = 0.0_f32;
-        let mut cue = None;
-
-        // Absorbed: half of what this turbo cost comes back.
-        if bit(absorbed) && memory.spent > 0.0 {
-            delta += memory.spent * PAYBACK;
-            cue = Some(CUE_ABSORB);
-        }
-        let carries = pickup == EXTENSION && flags & CRAFT_RACING != 0;
-        if !carries {
-            // Absorbed, wrecked or replaced: this turbo's account is closed.
-            memory = Memory { spent: 0.0, burst: 0, boosting: false, spark: 0, rest: 0 };
-        } else {
-            reply.push(PAD_MODE, slot, 0, 0.0, 0);
-            reply.push(PICKUP_TINT, slot, 0, 0.0, RED);
-            if bit(pads) {
-                delta += max * PAD_SHARE;
+    fn tick(obs: &Observation<'_>, state: &mut Slots, reply: &mut Reply<'_>) {
+        // This tick's events, one bit per slot each.
+        let (mut fired, mut absorbed, mut pads) = (0_u32, 0_u32, 0_u32);
+        for event in obs.events() {
+            match event {
+                Event::PickupFire { slot } => fired |= slot.bit(),
+                Event::PickupAbsorbed { slot } => absorbed |= slot.bit(),
+                Event::PadEnergy { slot } => pads |= slot.bit(),
+                Event::WallContact { .. } => {}
             }
-            if flags & CRAFT_PERSON == 0 {
-                if memory.burst == 0 && memory.rest == 0 && bit(fired) {
-                    memory.burst = AI_BURST;
-                    memory.rest = AI_BURST + AI_REST;
-                }
-                memory.rest = memory.rest.saturating_sub(1);
-            }
-            let wants = if flags & CRAFT_PERSON != 0 {
-                flags & CRAFT_FIRE_HELD != 0
-            } else {
-                memory.burst > 0
+        }
+        // Race-wide; the same rule each tick keeps its count. Every refusal below is
+        // ruled out by construction (at most 49 commands, values bounded).
+        let _ = reply.pickup_roll(Weapon::Turbo, ROLL_EVERY);
+        for (index, memory) in state.slots.iter_mut().enumerate() {
+            let Some(craft) = Slot::new(index).and_then(|slot| obs.craft(slot)) else {
+                *memory = Memory::default();
+                continue;
             };
-            memory.burst = memory.burst.saturating_sub(1);
-            let cost = max * DRAIN_SHARE;
-            let boosting = wants && shield + delta - cost > max * FLOOR_SHARE;
-            if boosting {
-                reply.push(SCALE_THRUST, slot, 0, BOOST_FACTOR, 0);
-                delta -= cost;
-                memory.spent += cost;
-                if !memory.boosting {
-                    cue = Some(CUE_TURBO);
-                }
-                if memory.spark == 0 {
-                    reply.push(FIRE_EFFECT, slot, EFFECT_SPARKS, 0.0, 0);
-                    memory.spark = SPARK_EVERY;
-                }
-                memory.spark -= 1;
-            } else {
-                memory.spark = 0;
+            let bit = |mask: u32| mask & craft.slot().bit() != 0;
+            let (shield, max) = (craft.shield(), craft.shield_max());
+            let mut delta = 0.0_f32;
+            let mut cue = None;
+
+            // Absorbed: half of what this turbo cost comes back.
+            if bit(absorbed) && memory.spent > 0.0 {
+                delta += memory.spent * PAYBACK;
+                cue = Some(Cue::Absorb);
             }
-            memory.boosting = boosting;
+            if craft.pickup() != Pickup::Ours || !craft.is_racing() {
+                // Absorbed, wrecked or replaced: this turbo's account is closed.
+                *memory = Memory::default();
+            } else {
+                let _ = reply.pad_mode(&craft);
+                let _ = reply.pickup_tint(&craft, RED);
+                if bit(pads) {
+                    delta += max * PAD_SHARE;
+                }
+                if !craft.is_person() {
+                    if memory.burst == 0 && memory.rest == 0 && bit(fired) {
+                        memory.burst = AI_BURST;
+                        memory.rest = AI_BURST + AI_REST;
+                    }
+                    memory.rest = memory.rest.saturating_sub(1);
+                }
+                let wants = if craft.is_person() {
+                    craft.fire_held()
+                } else {
+                    memory.burst > 0
+                };
+                memory.burst = memory.burst.saturating_sub(1);
+                let cost = max * DRAIN_SHARE;
+                let boosting = wants && shield + delta - cost > max * FLOOR_SHARE;
+                if boosting {
+                    let _ = reply.scale_thrust(&craft, BOOST_FACTOR);
+                    delta -= cost;
+                    memory.spent += cost;
+                    if !memory.boosting {
+                        cue = Some(Cue::Turbo);
+                    }
+                    if memory.spark == 0 {
+                        let _ = reply.fire_effect(&craft, Effect::CollisionSpark);
+                        memory.spark = SPARK_EVERY;
+                    }
+                    memory.spark -= 1;
+                } else {
+                    memory.spark = 0;
+                }
+                memory.boosting = boosting;
+            }
+            if delta != 0.0 {
+                // The host refuses more than the pool's maximum either way.
+                let bounded = if delta > max {
+                    max
+                } else if delta < -max {
+                    -max
+                } else {
+                    delta
+                };
+                let _ = reply.shield_delta(&craft, bounded);
+            }
+            if let Some(cue) = cue {
+                let _ = reply.play_cue(&craft, cue);
+            }
         }
-        if delta != 0.0 {
-            // The host refuses more than the pool's maximum either way.
-            let bounded = if delta > max { max } else if delta < -max { -max } else { delta };
-            reply.push(SHIELD_DELTA, slot, 0, bounded, 0);
-        }
-        if let Some(code) = cue {
-            reply.push(PLAY_CUE, slot, code, 0.0, 0);
-        }
-        store(slot, &memory);
     }
-    put_u32(REPLY_AT, reply.count as u32);
-    0
 }
 
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    core::arch::wasm32::unreachable()
+oag_ext::export!(EnergyTurbo);
+
+#[cfg(test)]
+mod tests {
+    use oag_ext::test::{CraftRecord, Race};
+    use oag_ext::{Command, Event, Pickup, Slot};
+
+    use super::*;
+
+    fn carrier(person: bool, fire_held: bool) -> CraftRecord {
+        CraftRecord {
+            pickup: Pickup::Ours,
+            person,
+            fire_held,
+            racing: true,
+            shield: 100.0,
+            shield_max: 100.0,
+            speed_kmh: 400.0,
+        }
+    }
+
+    #[test]
+    fn a_person_holding_fire_boosts_on_the_shield_and_an_absorb_pays_half_back() {
+        let me = Slot::new(0).unwrap();
+        let mut race = Race::<EnergyTurbo>::new().with_craft(me, carrier(true, true));
+        let first = race.tick();
+        assert_eq!(
+            first[..4],
+            [
+                Command::PickupRoll {
+                    weapon: Weapon::Turbo,
+                    every: ROLL_EVERY
+                },
+                Command::PadMode { slot: me },
+                Command::PickupTint {
+                    slot: me,
+                    rgba: RED
+                },
+                Command::ScaleThrust {
+                    slot: me,
+                    factor: BOOST_FACTOR
+                },
+            ]
+        );
+        assert!(first.contains(&Command::PlayCue {
+            slot: me,
+            cue: Cue::Turbo
+        }));
+        let spent = race.state().slots[0].spent;
+        assert_eq!(spent, 100.0 * DRAIN_SHARE);
+        // Absorbed: the pickup is gone, half of the spend comes back.
+        *race.craft_mut(me) = Some(CraftRecord {
+            pickup: Pickup::None,
+            ..carrier(true, false)
+        });
+        race.event(Event::PickupAbsorbed { slot: me });
+        assert_eq!(
+            race.tick()[1..],
+            [
+                Command::ShieldDelta {
+                    slot: me,
+                    amount: spent * PAYBACK
+                },
+                Command::PlayCue {
+                    slot: me,
+                    cue: Cue::Absorb
+                },
+            ]
+        );
+        assert_eq!(race.state().slots[0].spent, 0.0);
+    }
+
+    #[test]
+    fn an_ai_craft_boosts_a_burst_then_rests() {
+        let ai = Slot::new(3).unwrap();
+        let mut race = Race::<EnergyTurbo>::new().with_craft(ai, carrier(false, false));
+        race.event(Event::PickupFire { slot: ai });
+        let boosting = |commands: &[Command]| {
+            commands
+                .iter()
+                .any(|c| matches!(c, Command::ScaleThrust { .. }))
+        };
+        let ticks: Vec<bool> = (0..u32::from(AI_BURST + AI_REST) + 1)
+            .map(|tick| {
+                if tick > 0 {
+                    race.event(Event::PickupFire { slot: ai });
+                }
+                boosting(&race.tick())
+            })
+            .collect();
+        assert!(ticks[..usize::from(AI_BURST)].iter().all(|b| *b));
+        assert!(
+            ticks[usize::from(AI_BURST)..usize::from(AI_BURST + AI_REST)]
+                .iter()
+                .all(|b| !*b)
+        );
+        assert!(ticks[usize::from(AI_BURST + AI_REST)]);
+    }
 }
