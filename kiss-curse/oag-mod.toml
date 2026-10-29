@@ -1,0 +1,30 @@
+# Kiss Curse: a craft that touches a wall loses far more speed than it would. The
+# first simulation mod (OpenAntiGrav's docs/architecture/wasm-extensions/). Runs only
+# in a build with the `extensions` cargo feature; without it the race says the module
+# was left out and runs vanilla. A rules module: it acts on every craft, a person's
+# and the AI's alike, in every race but the original campaigns.
+#
+# The module is built from guest/ (`guest/build.sh`); ext/kiss_curse.wasm is that
+# build, committed.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
+
+[mod]
+id = "oag.kiss-curse"
+name = "Kiss Curse"
+version = "1.0.0"
+authors = ["The OpenAntiGrav contributors"]
+license = "MIT OR Apache-2.0"
+description = "Touch a wall and your engine is cursed: a quarter of its thrust for a second and a half."
+repository = "https://github.com/OpenAntiGrav/mod-examples"
+titles = ["wipeout-pulse"]
+
+[extension]
+simulation = true
+api = 1
+memory_pages = 2
+# One u16 countdown per grid slot.
+state_bytes = 16
+
+[extension.rules]
+module = "ext/kiss_curse.wasm"
