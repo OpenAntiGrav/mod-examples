@@ -172,18 +172,21 @@ caution = [0.0, 0.2]
 
 # A track this mod carries itself: tracks/practice-octagon.track.toml, a bare
 # loop of this project's own format with no art section, so it draws
-# flat-shaded. The times are set from the autopilot on Pulse at Venom
-# (2026-10-29): 1:38.86 for three laps, best lap 32.55 s.
+# flat-shaded, flown here as a Zone event. A Zone circuit's own look is a
+# separate file on the disc and a track file has none, so only the loop is
+# shared: the ship, speed ramp, HUD and sound are Pulse's Zone ones. The
+# medals are a zone count (more is better), 24 / 18 / 12: inside the 18 to 24
+# gold range Pulse's own 16 Zone cells author (chosen, not measured). The
+# autopilot clears zone 24 in about four minutes and wrecks only at zone
+# 626 (2026-10-29), so these are a player's marks, not its ceiling.
 [[grid.event]]
 slot = [2, 2]
 id = "octagon"
-name = "Octagon Trial"
-mode = "time_trial"
+name = "Octagon Zone"
+mode = "zone"
 file = "tracks/practice-octagon.track.toml"
-class = "venom"
-laps = 3
 unlock = { requires = [{ event = "tour", medal = "bronze" }] }
-medals = { gold = 100.0, silver = 110.0, bronze = 125.0 }
+medals = { gold = 24, silver = 18, bronze = 12 }
 
 [[grid.event]]
 slot = [3, 2]
