@@ -9,6 +9,12 @@ game run from a checkout (`just play`) offers them, and its tests read them.
 | [`hillside/`](hillside/) (`oag.hillside`) | A track-only mod: one track of OpenAntiGrav's own format, with art. Raced from RACE REMIX's CUSTOM title, or from another mod's campaign. |
 | [`example-campaign/`](example-campaign/) (`oag.example-campaign`) | NIGHT RUN, a custom campaign: disc circuits, a pilot of its own, a track it bundles (`tracks/practice-octagon.track.toml`) and Hillside out of `oag.hillside`. |
 
+![Hillside on Wipeout Pulse: the start gantry, the grid and the mountain range](hillside/screenshot.png)
+
+*Hillside raced on Wipeout Pulse (PSP). The road, walls and sky are Pulse's own textures,
+read from the player's disc at race time; the terrain, mountains, lake, gantry, grid and light
+are this repository's. `hillside/hillside.py` rebuilds the track in Blender.*
+
 Both are for Wipeout Pulse only: their art borrows Pulse's textures by name. To
 play them in an installed game, copy both folders into a mods directory. The
 campaign needs `oag.hillside` installed beside it.
@@ -20,7 +26,9 @@ in `docs/tools/mods.md`.
 ## Rules
 
 - **No game content.** Nothing extracted from a disc: a track borrows a disc's
-  texture or sky by name, and the game reads it from the player's own disc.
+  texture or sky by name, and the game reads it from the player's own disc. The one
+  exception is a screenshot of a mod in the running game (maintainer, 2026-10-29), which
+  shows the disc's art as it draws.
 - `*.glb`, `*.blend` and `*.png` are stored with Git LFS (`git lfs install` once
   before cloning).
 - Each mod folder has an owner; change only your own and `git pull --rebase`

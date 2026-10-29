@@ -5,6 +5,7 @@ version = "1.0.0"
 [track]
 id = "hillside"
 title = "Hillside"
+host = "wipeout-pulse"
 glb = "hillside.glb"
 notes = ["12 control points, two rises (chosen, not measured); authored headless with the OAG add-on", "art: Pulse 03_Track's textures and sky by name, own terrain, props and a covered bend, Cycles-baked sun, sky and bounce (chosen, not measured)"]
 
@@ -23,9 +24,9 @@ next = [0, -1]
 
 [counts]
 collision_nodes = 2
-speedup_pads = 1
-weapon_pads = 1
-art_meshes = 77
+speedup_pads = 4
+weapon_pads = 5
+art_meshes = 217
 
 [art]
 sky = "Data\\Environments\\03_Track\\track.vex"
@@ -39,13 +40,19 @@ angular_diameter = 1.5
 shadows = true
 
 [art.lensflare]
-atlas = 9
+atlas = 17
 
 [[art.light]]
 kind = "directional"
 direction = [0.70104754, 0.40894428, 0.58420634]
 colour = [0.42, 0.5, 0.68]
 intensity = 0.6
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\Airship.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\Bush.tga" }
 
 [[art.texture]]
 image = "hillside_chevron.png"
@@ -60,13 +67,31 @@ host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Enviro
 host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\Metalbase1.tga" }
 
 [[art.texture]]
-host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\_surface6_1.tga" }
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\billboard8.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\startline_tower2.tga" }
+
+[[art.texture]]
+image = "hillside_grid.png"
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\NewSeaTest.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\Grass.tga" }
 
 [[art.texture]]
 host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\SeaRock.tga" }
 
 [[art.texture]]
-host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\Grass.tga" }
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Pads\\Textures\\whitenonalpha.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\_surface6_1.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\startline_laser_ADD_GLOW.tga" }
 
 [[art.texture]]
 host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\Tree1low.tga" }
