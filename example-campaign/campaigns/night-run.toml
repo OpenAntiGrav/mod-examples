@@ -1,8 +1,8 @@
 # A custom campaign: two tiers (six events and five), on Pulse's own circuits, one track
 # this mod carries and one out of another mod. Every key
 # is in docs/formats/custom-campaign.md. Circuit and team ids are the disc's own
-# (`01_Track`, `Feisar`). The mod is for Pulse only (oag-mod.toml's `titles`): its
-# track file borrows Pulse art. An id the disc does not have refuses that event by
+# (`01_Track`, `Feisar`). The mod is for Pulse only (oag-mod.toml's `titles`):
+# Hillside borrows Pulse art. An id the disc does not have refuses that event by
 # name when it is confirmed; it never races something else.
 #
 # The slot field is 7 columns (x 0-6) by 4 or 5 rows (y 0-4): odd columns sit half a
@@ -94,9 +94,10 @@ teams = ["Qirex"]
 # A track another mod carries: Hillside, out of the track-only mod `oag.hillside`
 # (../hillside), named `<mod id>:<path>`. Without that mod installed, this
 # campaign is not offered and the log says why. Its records and ghosts key as
-# `foreign:hillside`, the manifest's `track.id`, whichever mod carries the file. The times are set from the
-# autopilot on Pulse at Phantom (2026-10-29): 30.4-30.5 s a lap, about 63 s for two
-# from the start, so gold asks for the autopilot's pace.
+# `foreign:hillside`, the manifest's `track.id`, whichever mod carries the file.
+# The times are set from the autopilot on Pulse at Phantom (2026-10-29):
+# 30.4-30.5 s a lap, about 63 s for two from the start, so gold asks for the
+# autopilot's pace.
 [[grid.event]]
 slot = [1, 1]
 id = "sprint"
