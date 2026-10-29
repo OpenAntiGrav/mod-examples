@@ -16,3 +16,18 @@ description = "A track-only mod: Hillside, a loop with two rises, on Pulse."
 repository = "https://github.com/OpenAntiGrav/mod-examples"
 # Pulse only: its art borrows Pulse 03_Track's textures and sky by name.
 titles = ["wipeout-pulse"]
+
+# Hillside's rain, a WebAssembly track module: when the first craft of any kind enters
+# its final lap, the host title's own rain starts, the sun and its lens flare fade out
+# and the sky greys, over 3 s. Runs only on this track file. Needs the game built with
+# the `extensions` feature; without it the track races dry, as it always did.
+[extension]
+simulation = true
+api = 1
+memory_pages = 2
+# One u8 flag and one u16 tick count.
+state_bytes = 3
+
+[extension.track]
+module = "ext/hillside_rain.wasm"
+track = "tracks/hillside.track.toml"
