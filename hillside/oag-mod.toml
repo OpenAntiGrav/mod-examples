@@ -1,0 +1,18 @@
+# A track-only mod: Hillside, a loop of OpenAntiGrav's own track format
+# (tracks/hillside.track.toml and the .glb beside it), authored with the OAG
+# Blender add-on. Installed, it is a row on RACE REMIX's CUSTOM title, and a
+# campaign in another mod can race it as `oag.hillside:tracks/hillside.track.toml`
+# (example-campaign does). Records and ghosts key as `foreign:hillside`.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
+
+[mod]
+id = "oag.hillside"
+name = "Hillside"
+version = "1.0.0"
+authors = ["The OpenAntiGrav contributors"]
+license = "MIT OR Apache-2.0"
+description = "A track-only mod: Hillside, a loop with two rises, on Pulse."
+repository = "https://github.com/OpenAntiGrav/mod-examples"
+# Pulse only: its art borrows Pulse 03_Track's textures and sky by name.
+titles = ["wipeout-pulse"]

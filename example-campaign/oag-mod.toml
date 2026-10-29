@@ -1,0 +1,19 @@
+# The worked example of a custom campaign (OpenAntiGrav's
+# docs/formats/custom-campaign.md). The game run from an OpenAntiGrav checkout
+# (`just play`) finds it in assets/mods/examples, this repository's submodule; an
+# installed game does not: copy this folder and ../hillside into a mods directory
+# (docs/tools/mods.md). It races Hillside out of the track-only mod `oag.hillside`,
+# so without that mod installed the campaign is not offered.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
+
+[mod]
+id = "oag.example-campaign"
+name = "Example campaign"
+version = "1.0.0"
+authors = ["The OpenAntiGrav contributors"]
+license = "MIT OR Apache-2.0"
+description = "A small campaign on the disc's own circuits: hidden cells, a preset craft, a tournament, per-rung medals and a head-to-head against a written-out pilot."
+repository = "https://github.com/OpenAntiGrav/mod-examples"
+# Pulse only: both its tracks borrow Pulse 03_Track's art.
+titles = ["wipeout-pulse"]

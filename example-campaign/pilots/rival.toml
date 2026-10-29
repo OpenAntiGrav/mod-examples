@@ -1,0 +1,11 @@
+# A pilot this mod carries: the head-to-head rival in campaigns/night-run.toml
+# names it `rival`. Same keys as a player's own pilot file
+# (assets/ai/example-pilot.toml); a mod's pilots are found before the player's.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/pilot.tosd", version = "1.0.0" }
+
+# Takes the inside and holds it.
+commitment = [0.8, 0.9]
+defence = [0.7, 0.9]
+inside = [0.6, 0.8]
+lean = "left"

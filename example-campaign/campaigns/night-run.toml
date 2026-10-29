@@ -1,0 +1,218 @@
+# A custom campaign: two tiers (six events and five), on Pulse's own circuits, one track
+# this mod carries and one out of another mod. Every key
+# is in docs/formats/custom-campaign.md. Circuit and team ids are the disc's own
+# (`01_Track`, `Feisar`). The mod is for Pulse only (oag-mod.toml's `titles`): its
+# track file borrows Pulse art. An id the disc does not have refuses that event by
+# name when it is confirmed; it never races something else.
+#
+# The slot field is 7 columns (x 0-6) by 4 or 5 rows (y 0-4): odd columns sit half a
+# hex lower, and a hex's neighbours are the six around it.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/campaign.tosd", version = "1.0.0" }
+
+[campaign]
+id = "night-run"
+name = "NIGHT RUN"
+description = "Eleven events over two tiers, opening one at a time."
+# The default for every tier; each tier below may say otherwise.
+reveal = "hidden"
+
+# Tier 1: every event drawn from the start, the unopened ones with their lock.
+[[grid]]
+id = "opening"
+name = "Opening"
+reveal = "locked"
+
+# Open from the start. The player picks a craft on Team Selection.
+[[grid.event]]
+slot = [2, 1]
+id = "first"
+name = "Warm-up"
+mode = "time_trial"
+track = "01_Track"
+class = "venom"
+laps = 3
+unlock = { open = true }
+# Seconds for a timed mode; absent rungs use these.
+medals = { gold = 150.0, silver = 165.0, bronze = 180.0 }
+
+# Opens once the warm-up has any medal. The craft is preset, so Team Selection
+# is skipped, and the opponents' teams are named, pole first.
+[[grid.event]]
+slot = [2, 2]
+id = "gate"
+name = "Gate Run"
+mode = "race"
+track = "02_Track"
+class = "venom"
+laps = 3
+craft = { team = "Feisar" }
+unlock = { requires = [{ event = "first" }] }
+
+[grid.event.field]
+ai = "original"
+skill = 1.75
+teams = ["Qirex", "Goteki", "Piranha"]
+
+# A place on each rung: easier to get gold on easy.
+[grid.event.medals]
+easy = { gold = 2, silver = 3, bronze = 5 }
+medium = { gold = 1, silver = 2, bronze = 3 }
+hard = { gold = 1, silver = 1, bronze = 2 }
+
+# No `unlock` table: the title's own rule, open once this hex or one beside it
+# has a medal (the warm-up and the gate run are both beside it).
+[[grid.event]]
+slot = [3, 1]
+id = "hot-lap"
+name = "Hot Lap"
+mode = "speed_lap"
+track = "04_Track"
+class = "venom"
+# The fastest lap, in seconds.
+medals = { gold = 45.0, silver = 50.0, bronze = 55.0 }
+
+# Head to head against our own driver, flying the pilot this mod carries in
+# pilots/rival.toml. It opens on a silver or better at the gate run.
+[[grid.event]]
+slot = [3, 2]
+id = "duel"
+name = "Duel"
+mode = "head2head"
+track = "03_Track"
+class = "flash"
+unlock = { requires = [{ event = "gate", medal = "silver" }] }
+# No silver: a second place earns bronze, never silver.
+medals = { gold = 1, bronze = 2 }
+
+[grid.event.field]
+ai = "ours"
+difficulty = "ace"
+pilot = "rival"
+teams = ["Qirex"]
+
+# A track another mod carries: Hillside, out of the track-only mod `oag.hillside`
+# (../hillside), named `<mod id>:<path>`. Without that mod installed, this
+# campaign is not offered and the log says why. Its records and ghosts key as
+# `foreign:hillside`, the manifest's `track.id`, whichever mod carries the file. The times are set from the
+# autopilot on Pulse at Phantom (2026-10-29): 30.4-30.5 s a lap, about 63 s for two
+# from the start, so gold asks for the autopilot's pace.
+[[grid.event]]
+slot = [1, 1]
+id = "sprint"
+name = "Hillside Sprint"
+mode = "time_trial"
+file = "oag.hillside:tracks/hillside.track.toml"
+class = "phantom"
+laps = 2
+# Open from the start, whatever else is done.
+unlock = { open = true }
+medals = { gold = 64.0, silver = 70.0, bronze = 80.0 }
+
+# Weapons off, the original driver on its hard rung.
+[[grid.event]]
+slot = [4, 1]
+id = "clean"
+name = "Clean Race"
+mode = "race"
+track = "05_Track"
+class = "flash"
+laps = 4
+weapons = false
+unlock = { requires = [{ event = "hot-lap" }] }
+medals = { gold = 1, silver = 2, bronze = 3 }
+
+[grid.event.field]
+ai = "original"
+difficulty = "hard"
+
+# Tier 2: five events, opening with 6 medal points on tier 1. Hidden: an event appears once what
+# it requires is done, as 2048's events do.
+[[grid]]
+id = "final"
+name = "Final"
+required_points = 6
+unlock_grid = "opening"
+
+[[grid.event]]
+slot = [2, 1]
+id = "tour"
+name = "Night Tour"
+mode = "tournament"
+tracks = ["01_Track", "02_Track", "03_Track"]
+class = "flash"
+unlock = { open = true }
+medals = { gold = 1, silver = 2, bronze = 3 }
+
+[grid.event.field]
+ai = "ours"
+difficulty = "elite"
+# A pilot of the player's roster (one of the four built in).
+pilot = "aggressive"
+
+[[grid.event]]
+slot = [3, 1]
+id = "last-stand"
+name = "Last Stand"
+mode = "elimination"
+track = "02_Track"
+class = "flash"
+unlock = { requires = [{ event = "tour" }] }
+# A kill count: more is better.
+medals = { gold = 10, silver = 6, bronze = 3 }
+
+# A pilot can also be written out in place, with the pilot file's keys.
+[grid.event.field]
+ai = "ours"
+
+[grid.event.field.pilot]
+ram = [0.6, 0.9]
+caution = [0.0, 0.2]
+
+# A track this mod carries itself: tracks/practice-octagon.track.toml, a bare
+# loop of this project's own format with no art section, so it draws
+# flat-shaded. The times are set from the autopilot on Pulse at Venom
+# (2026-10-29): 1:38.86 for three laps, best lap 32.55 s.
+[[grid.event]]
+slot = [2, 2]
+id = "octagon"
+name = "Octagon Trial"
+mode = "time_trial"
+file = "tracks/practice-octagon.track.toml"
+class = "venom"
+laps = 3
+unlock = { requires = [{ event = "tour", medal = "bronze" }] }
+medals = { gold = 100.0, silver = 110.0, bronze = 125.0 }
+
+[[grid.event]]
+slot = [3, 2]
+id = "rapier-duel"
+name = "Rapier Duel"
+mode = "head2head"
+track = "07_Track"
+class = "rapier"
+unlock = { requires = [{ event = "last-stand" }] }
+medals = { gold = 1 }
+
+[grid.event.field]
+ai = "ours"
+difficulty = "skilled"
+pilot = "rival"
+teams = ["Piranha"]
+
+# Needs two events done: a silver on tier 1's Hillside sprint and the rapier duel.
+[[grid.event]]
+slot = [4, 1]
+id = "finale"
+name = "Finale"
+mode = "race"
+track = "09_Track"
+class = "phantom"
+laps = 5
+unlock = { requires = [{ event = "sprint", medal = "silver" }, { event = "rapier-duel" }] }
+medals = { gold = 1, silver = 2, bronze = 3 }
+
+[grid.event.field]
+ai = "original"
+difficulty = "medium"
+teams = ["AG_Systems", "Assegai", "EGX", "Triakis"]
