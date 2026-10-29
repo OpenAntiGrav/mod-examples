@@ -9,6 +9,7 @@ game run from a checkout (`just play`) offers them, and its tests read them.
 | [`hillside/`](hillside/) (`oag.hillside`) | A track-only mod: one track of OpenAntiGrav's own format, with art. Raced from RACE REMIX's CUSTOM title, or from another mod's campaign. |
 | [`example-campaign/`](example-campaign/) (`oag.example-campaign`) | NIGHT RUN, a custom campaign: disc circuits, a pilot of its own, a track it bundles (`tracks/practice-octagon.track.toml`) and Hillside out of `oag.hillside`. |
 | [`kiss-curse/`](kiss-curse/) (`oag.kiss-curse`) | Kiss Curse, a simulation mod in WebAssembly: a craft that touches a wall keeps a quarter of its thrust for 1.5 s. Rust source in `kiss-curse/guest/` (`guest/build.sh`), the built module committed as `kiss-curse/ext/kiss_curse.wasm`. Needs a game built with the `extensions` feature. |
+| [`energy-turbo/`](energy-turbo/) (`oag.energy-turbo`) | Energy Turbo, a simulation mod in WebAssembly: every Turbo pickup becomes an energy turbo with a red backdrop. Hold fire to boost on your shield, absorb it for half of what you spent, carry it over a speed pad to refill instead of boosting. Rust source in `energy-turbo/guest/`, the built module committed as `energy-turbo/ext/energy_turbo.wasm`. Needs the `extensions` feature. |
 
 ![Hillside on Wipeout Pulse: the start gantry, the grid and the mountain range](hillside/screenshot.png)
 
