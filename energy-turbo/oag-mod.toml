@@ -1,4 +1,5 @@
-# Energy Turbo: every Turbo pickup becomes an energy turbo, drawn with a red backdrop.
+# Energy Turbo: a pickup of its own, handed out in place of every second Turbo, drawn
+# as the Turbo on a red backdrop.
 # Hold fire to boost for as long as the pool lasts, paid for in shield energy; absorb
 # it to get half of what you spent back; carry it over a speed pad and the pad fills
 # the pool instead of boosting. Spending your shield is the risk: a hit on an empty
@@ -15,7 +16,7 @@ name = "Energy Turbo"
 version = "1.0.0"
 authors = ["The OpenAntiGrav contributors"]
 license = "MIT OR Apache-2.0"
-description = "Turbo pickups become energy turbos: hold fire to boost on your shield, absorb for half of it back, pads refill instead of boosting."
+description = "Every second Turbo pickup is an energy turbo instead: hold fire to boost on your shield, absorb for half of it back, pads refill instead of boosting."
 repository = "https://github.com/OpenAntiGrav/mod-examples"
 titles = ["wipeout-pulse"]
 
@@ -23,9 +24,9 @@ titles = ["wipeout-pulse"]
 simulation = true
 api = 1
 memory_pages = 2
-# Per grid slot: energy spent (f32), AI burst ticks (u16), boosting last tick (u8),
-# spark countdown (u8).
-state_bytes = 64
+# Per grid slot, 12 bytes: energy spent (f32), AI burst ticks (u16), boosting last
+# tick (u8), spark countdown (u8), AI burst-and-rest ticks (u16), 2 spare.
+state_bytes = 96
 
 [extension.rules]
 module = "ext/energy_turbo.wasm"

@@ -1,10 +1,13 @@
-//! Energy Turbo: every Turbo pickup becomes an energy turbo.
+//! Energy Turbo: a pickup of its own, handed out in place of every second Turbo.
 //!
-//! - **Carry it**: the module claims the craft's Turbo (`claim-pickup`), so the engine
-//!   no longer fires it as a Turbo; its backdrop on the HUD turns red (`pickup-tint`).
+//! - **Pick it up**: the module asks the engine (`pickup-roll`) to hand out its own
+//!   pickup in place of every second Turbo a weapon pad draws, so half the Turbos stay
+//!   the title's own. The HUD draws it with the Turbo's icon on a red backdrop
+//!   (`pickup-tint`); the engine never fires or absorbs it.
 //! - **Hold fire**: the craft boosts (`scale-thrust` above 1) and pays for it from its
 //!   shield (`shield-delta`), for as long as fire is held and the pool lasts. An AI
-//!   craft, which holds no button, boosts for a fixed burst each time its driver fires.
+//!   craft, which holds no button, boosts for a fixed 1 s burst when its driver fires
+//!   (where it would fire a Turbo), then rests 2 s before another.
 //!   A Turbo cue on each boost start, the title's wall sparks at the nozzle while it
 //!   runs.
 //! - **Absorb it**: the pickup is gone and half of the energy spent on it comes back.
@@ -34,13 +37,21 @@ const PAYBACK: f32 = 0.5;
 const PAD_SHARE: f32 = 0.15;
 /// An AI craft's boost per decision to fire, ticks (1 s). Chosen.
 const AI_BURST: u16 = 60;
+/// Ticks an AI craft waits after a burst before its next: its driver asks every tick
+/// the Turbo gate passes, so without a rest it would boost down every straight. Chosen.
+const AI_REST: u16 = 120;
+/// The share of the title's Turbos handed out as this pickup instead: every second.
+/// Chosen.
+const ROLL_EVERY: u32 = 2;
 /// Ticks between two spark bursts at the nozzle. Chosen.
 const SPARK_EVERY: u8 = 6;
 /// The backdrop's red: 0xE0, 0x20, 0x20, opaque. Chosen.
 const RED: u32 = 0xFF20_20E0;
 
-/// `oag_tables::weapons::Weapon::ALL`'s Turbo, plus one.
-const TURBO: u8 = 5;
+/// `oag_tables::weapons::Weapon::ALL`'s Turbo, plus one: the weapon rolled.
+const TURBO: u16 = 5;
+/// The craft record's code for this mod's own pickup.
+const EXTENSION: u8 = 255;
 
 // The ABI 1 layout (`oag_modhost::abi`).
 const IO_LEN: usize = 4096;
@@ -56,21 +67,21 @@ const EVENT_PICKUP_ABSORBED: u8 = 3;
 const EVENT_PAD_ENERGY: u8 = 4;
 const SCALE_THRUST: u8 = 1;
 const SHIELD_DELTA: u8 = 2;
-const CLAIM_PICKUP: u8 = 3;
 const PAD_MODE: u8 = 4;
 const PLAY_CUE: u8 = 5;
 const FIRE_EFFECT: u8 = 6;
 const PICKUP_TINT: u8 = 7;
+const PICKUP_ROLL: u8 = 9;
 const CUE_TURBO: u16 = 1;
 const CUE_ABSORB: u16 = 3;
 const EFFECT_SPARKS: u16 = 0;
 const CRAFT_PERSON: u8 = 1;
 const CRAFT_FIRE_HELD: u8 = 2;
 const CRAFT_RACING: u8 = 4;
-const CRAFT_CLAIMED: u8 = 8;
 
-/// Grid slots: one 8-byte record each in the blob.
+/// Grid slots: one 12-byte record each in the blob.
 const SLOTS: usize = 8;
+const RECORD: usize = 12;
 
 static mut IO: [u8; IO_LEN] = [0; IO_LEN];
 
@@ -108,26 +119,31 @@ struct Memory {
     burst: u16,
     boosting: bool,
     spark: u8,
+    rest: u16,
 }
 
 fn load(slot: usize) -> Memory {
-    let at = STATE_AT + slot * 8;
+    let at = STATE_AT + slot * RECORD;
     Memory {
         spent: get_f32(at),
         burst: u16::from_le_bytes([get_u8(at + 4), get_u8(at + 5)]),
         boosting: get_u8(at + 6) != 0,
         spark: get_u8(at + 7),
+        rest: u16::from_le_bytes([get_u8(at + 8), get_u8(at + 9)]),
     }
 }
 
 fn store(slot: usize, memory: &Memory) {
-    let at = STATE_AT + slot * 8;
+    let at = STATE_AT + slot * RECORD;
     put_u32(at, memory.spent.to_bits());
     let [lo, hi] = memory.burst.to_le_bytes();
     put_u8(at + 4, lo);
     put_u8(at + 5, hi);
     put_u8(at + 6, u8::from(memory.boosting));
     put_u8(at + 7, memory.spark);
+    let [lo, hi] = memory.rest.to_le_bytes();
+    put_u8(at + 8, lo);
+    put_u8(at + 9, hi);
 }
 
 struct Reply {
@@ -177,6 +193,8 @@ pub extern "C" fn tick() -> u32 {
         }
     }
     let mut reply = Reply { count: 0 };
+    // Race-wide; the same rule each tick keeps its count.
+    reply.push(PICKUP_ROLL, 0, TURBO, 0.0, ROLL_EVERY);
     for slot in 0..SLOTS {
         let craft = CRAFTS_AT + slot * 16;
         let (pickup, flags) = (get_u8(craft), get_u8(craft + 1));
@@ -191,21 +209,22 @@ pub extern "C" fn tick() -> u32 {
             delta += memory.spent * PAYBACK;
             cue = Some(CUE_ABSORB);
         }
-        let carries = pickup == TURBO && flags & CRAFT_RACING != 0;
+        let carries = pickup == EXTENSION && flags & CRAFT_RACING != 0;
         if !carries {
             // Absorbed, wrecked or replaced: this turbo's account is closed.
-            memory = Memory { spent: 0.0, burst: 0, boosting: false, spark: 0 };
+            memory = Memory { spent: 0.0, burst: 0, boosting: false, spark: 0, rest: 0 };
         } else {
-            if flags & CRAFT_CLAIMED == 0 {
-                reply.push(CLAIM_PICKUP, slot, 0, 0.0, 0);
-            }
             reply.push(PAD_MODE, slot, 0, 0.0, 0);
             reply.push(PICKUP_TINT, slot, 0, 0.0, RED);
             if bit(pads) {
                 delta += max * PAD_SHARE;
             }
-            if flags & CRAFT_PERSON == 0 && bit(fired) {
-                memory.burst = AI_BURST;
+            if flags & CRAFT_PERSON == 0 {
+                if memory.burst == 0 && memory.rest == 0 && bit(fired) {
+                    memory.burst = AI_BURST;
+                    memory.rest = AI_BURST + AI_REST;
+                }
+                memory.rest = memory.rest.saturating_sub(1);
             }
             let wants = if flags & CRAFT_PERSON != 0 {
                 flags & CRAFT_FIRE_HELD != 0
