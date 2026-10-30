@@ -52,12 +52,17 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
 `blob!`, name the type in `export!`.
 
 - `Observation`: `tick()`, `craft(slot) -> Option<Craft>`, `crafts()`, `events()`, `track()`.
+- `Track`: `whole()`, `speed_pad(i)`, `weapon_pad(i)`, `trigger(i)`, `path(i)`, `route(i)` and
+  their counts (`speed_pads()`, `weapon_pads()`, `triggers()`, `paths()`, `routes()`); each
+  entity has `prop(key)`, `to_world()`, `bounds()`. A route (a way from a fork back to the lap)
+  carries the properties of the spline paths it drives, so `route(r).prop(prop!("pit"))` finds
+  the route through a path tagged `mod_pit`.
 - `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`,
   `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `pickup()`.
 - `Event`: `WallContact`, `PickupFire`, `PickupAbsorbed`, `SpeedPad{pad}`, `WeaponPad{pad}`,
   `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`. At most 32 per call.
 - `Reply`: one method per command, `Result<(), Refused>`. `Refused` is `Full` (96 commands),
-  `Repeated` (a second per-craft thrust, shield or pad command), `Range`, `HudItems`
+  `Repeated` (a second per-craft thrust, shield, pad or route command), `Range`, `HudItems`
   (more than 32 text/icon items per craft per tick, or the string pool full), `Pickup`.
   Handle or `let _ =` it on purpose; the host would fault on what the SDK refuses.
 - `Slot` and `Craft`: a command naming a slot takes a `&Craft`, so an empty slot cannot be named.
@@ -142,15 +147,19 @@ a stand-alone clone needs a git dependency pinned to the ABI revision instead
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`; the state blob; the fault flag and tick | `play_cue`, `fire_effect`, `fire_mod_effect`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect`, `fire_mod_effect`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
 `Energy`, `Pickup`, `Position`, `Lap`, `Time`; a title with no widget draws nothing. Text
 and icons sit at one of nine `Anchor`s via `HudPlace`, at most 48 bytes a string.
+**`prefer_route(&craft, route)`** (command 21): at its next fork the craft's driver takes
+`route` (below `track.routes()`) instead of its coin's draw, if the route leaves that fork and
+the driver can drive it; the host still throws the coin. Re-send it every tick it should hold.
+It moves a driver only (an AI craft, or a person's Autopilot); the AI drives the route with the
+player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane with it.
 **Landing soon:** lane `ext-pickup-look` removes `hud-tint{Pickup}` and adds `pickup-look`
-(command 22); lane `ext-example-checkpoints` adds `prefer-route` (command 21). Re-read the
-engine docs before using either.
+(command 22). Re-read the engine docs before using it.
 
 ## Build, test, run
 
@@ -182,8 +191,11 @@ install as an extension, Blender 4.2+). A scene object is exported only when tag
 untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
 
 - **Properties for a module:** a custom property `mod_<name>` (number or bool, never a
-  string or array) on a pad Empty, a trigger Empty or the scene; the module reads it with
-  `prop!("<name>")`. Caps: 256 entities, 64 triggers, 1,024 properties.
+  string or array) on a pad Empty, a trigger Empty, a spline object or the scene; the module
+  reads it with `prop!("<name>")`. Caps: 256 entities, 64 triggers, 1,024 properties.
+- **A fork (a pit lane, a shortcut):** more than one spline path joined by the scene's
+  `oag_junctions` (JSON), as baked point-mesh splines with `oag_entry`/`oag_exit` (a Curve
+  spline must be one closed loop). `checkpoint-circuit/checkpoint_circuit.py` builds one.
 - **Triggers:** an Empty `oag/triggers/<name>` with Box min/max; **Make trigger from mesh**
   makes one from each selected mesh's bounds. The module hears `TriggerEnter`/`TriggerExit`.
 - **Effect preview and export:** **Preview effect** loads an effect TOML onto the active
@@ -193,7 +205,8 @@ untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
   **Sky** form. Nothing from the disc is exported; the game reads it from the player's disc at race time.
   A host-borrowing track is for that title only (`titles` in the manifest too).
 - Headless proof: `scripts/blender/roundtrip.py` (`loop`, `props`, `effect`) in the engine.
-  `hillside/hillside.py` rebuilds Hillside in Blender.
+  `hillside/hillside.py` rebuilds Hillside in Blender, `checkpoint-circuit/checkpoint_circuit.py`
+  Checkpoint Circuit (a forked spline, triggers made from meshes).
 
 ## This repository's rules
 
