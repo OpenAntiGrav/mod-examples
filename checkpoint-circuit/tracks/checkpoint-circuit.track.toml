@@ -1,0 +1,75 @@
+[toml-schema]
+location = "https://oag.topaxi.com/mods/schemas/v1/track.tosd"
+version = "1.0.0"
+
+[track]
+id = "checkpoint-circuit"
+title = "Checkpoint Circuit"
+host = "wipeout-pulse"
+glb = "checkpoint-circuit.glb"
+notes = ["a stadium loop with a pit lane forking off the main straight (three paths, two junctions); four checkpoint gates and a pit trigger for the checkpoint-circuit mod (chosen, not measured)"]
+
+[spline]
+point_version = 263
+
+[[spline.path]]
+points = 71
+entry = 1
+exit = 0
+max_spacing_bits = 1101016736
+
+[[spline.path]]
+points = 73
+entry = 1
+exit = 0
+max_spacing_bits = 1100939840
+
+[[spline.path]]
+points = 250
+entry = 0
+exit = 1
+max_spacing_bits = 1101016736
+
+[[spline.junction]]
+prev = [0, 1]
+next = [2, -1]
+
+[[spline.junction]]
+prev = [2, -1]
+next = [0, 1]
+
+[counts]
+collision_nodes = 2
+speedup_pads = 2
+weapon_pads = 3
+art_meshes = 20
+triggers = 5
+
+[art]
+sky = "Data\\Environments\\03_Track\\track.vex"
+ambient = [0.15, 0.18, 0.24]
+
+[art.sun]
+direction = [0.23795393, 0.3119393, -0.9198216]
+colour = [1.0, 0.9, 0.72]
+intensity = 1.0
+angular_diameter = 1.5
+shadows = true
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\Metalbase1.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\startline_tower2.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\_wall6_1.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\03_Track\\Textures\\Grass.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\_surface6_1.tga" }
+
+[[art.texture]]
+host = { entry = "Data\\Environments\\03_Track\\track.vex", name = "Data\\Environments\\GenericTrackTextures\\_walltop6_1.tga" }

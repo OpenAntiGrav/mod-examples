@@ -1,0 +1,30 @@
+# Checkpoint Circuit: one track of OpenAntiGrav's own format (tracks/, rebuilt by
+# checkpoint_circuit.py in Blender) and its WebAssembly track module (ext/, Rust source in
+# guest/). Each craft races a 20 s clock to its next checkpoint gate; past zero its energy
+# drains until it reaches the gate or is wrecked. The pit lane beside the main straight
+# recharges energy, and an AI craft low on energy takes it. Raced from RACE REMIX's CUSTOM
+# title. Without the `extensions` feature the track races as a plain loop.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
+
+[mod]
+id = "oag.checkpoint-circuit"
+name = "Checkpoint Circuit"
+version = "1.0.0"
+authors = ["The OpenAntiGrav contributors"]
+license = "MIT OR Apache-2.0"
+description = "A track with checkpoint gates against the clock and a pit lane that recharges, on Pulse."
+repository = "https://github.com/OpenAntiGrav/mod-examples"
+# Pulse only: its art borrows Pulse's textures and 03_Track's sky by name.
+titles = ["wipeout-pulse"]
+
+[extension]
+simulation = true
+api = 1
+memory_pages = 2
+# Each slot's clock, next checkpoint and pit flag: 16 x (2 + 1 + 1) bytes.
+state_bytes = 64
+
+[extension.track]
+module = "ext/checkpoint_circuit.wasm"
+track = "tracks/checkpoint-circuit.track.toml"

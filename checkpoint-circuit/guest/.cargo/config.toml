@@ -1,0 +1,4 @@
+# A 16 KiB stack instead of Rust's 1 MiB default, so the module fits the two pages
+# oag-mod.toml declares.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=-zstack-size=16384"]

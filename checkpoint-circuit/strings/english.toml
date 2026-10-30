@@ -1,0 +1,4 @@
+# Checkpoint Circuit's own HUD text (`hud_string` in guest/src/lib.rs).
+[strings]
+CPC_CHECKPOINT = { text = "CHECKPOINT", human = false }
+CPC_RECHARGING = { text = "RECHARGING", human = false }
