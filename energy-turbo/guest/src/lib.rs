@@ -42,7 +42,7 @@ const AI_REST: u16 = 120;
 /// One Turbo in this many becomes this pickup.
 const ROLL_EVERY: u8 = 2;
 /// Ticks between two discharges at the nozzle.
-const SPARK_EVERY: u8 = 10;
+const SPARK_EVERY: u8 = 2;
 /// The mod's own discharge: `fx/discharge.toml`, the first of its `[effects]` by name.
 const DISCHARGE: u16 = 0;
 /// The energy bar's shake while the turbo drains, in HUD pixels. Chosen.

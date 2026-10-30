@@ -1,32 +1,39 @@
 # Energy Turbo's own effect: a red energy discharge at the nozzle while boosting, fired
-# by guest/src/lib.rs as `fire_mod_effect(craft, 0)` (effects sort by name). Units are the
+# by guest/src/lib.rs every 2 ticks while boosting as `fire_mod_effect(craft, 0)` (effects sort by name). Units are the
 # engine's: ticks (60 a second), world units per tick, degrees. See
-# schemas/v1/effect.tosd and docs/architecture/wasm-extensions/.
+# schemas/v1/effect.tosd and docs/formats/mod-effect.md.
 
 toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/effect.tosd", version = "1.0.0" }
 
-axis = "rear"
+axis = "up"
 
+# Many small fast red sparks, thrown back in a wide cone. Normal blending, so they stay
+# red over the bright track instead of adding up to orange.
 [[emitter]]
-name = "core"
-duration = 3
-per-emission = [4, 6]
-lifetime = [9, 3]
-speed = [0.7, 0.4]
-spread = 28
-drag = 0.93
-size = [[0.0, 0.55], [1.0, 0.1]]
-alpha = [[0.0, 1.0], [0.6, 0.7], [1.0, 0.0]]
-colour = [[0.0, "#ff6a48"], [0.25, "#ff2a18"], [1.0, "#600008"]]
+name = "sparks"
+duration = 2
+per-emission = [5, 8]
+lifetime = [10, 4]
+speed = [0.9, 0.5]
+spread = 75
+drag = 0.9
+blend = "alpha-over"
+size = [[0.0, 0.26], [1.0, 0.08]]
+alpha = [[0.0, 1.0], [0.7, 0.9], [1.0, 0.0]]
+colour = [[0.0, "#ff3a20"], [0.5, "#d80808"], [1.0, "#700000"]]
 
+# A dim red flicker at the nozzle itself, kept low so it never washes to white.
 [[emitter]]
-name = "arcs"
-duration = 3
-per-emission = [1, 2]
-lifetime = [5, 2]
-speed = [2.2, 0.8]
-spread = 50
-drag = 0.88
-size = [[0.0, 0.45], [1.0, 0.05]]
-alpha = [[0.0, 1.0], [1.0, 0.0]]
-colour = [[0.0, "#ffffff"], [0.4, "#ff2020"], [1.0, "#400000"]]
+name = "flicker"
+duration = 1
+per-emission = 1
+lifetime = [6, 2]
+speed = [0.1, 0.1]
+spread = 20
+drag = 0.9
+size = [[0.0, 0.35], [1.0, 0.12]]
+alpha = [[0.0, 0.28], [1.0, 0.0]]
+colour = [[0.0, "#e01010"], [1.0, "#800000"]]
+# The disc's own energy glow, found by name in Pulse's Brayfield circuit
+# (a host texture, as a track file names one).
+texture = { entry = "Data\\Environments\\16_Track\\track.vex", name = "energy_GLOW.tga" }
