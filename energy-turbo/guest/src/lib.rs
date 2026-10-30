@@ -1,7 +1,7 @@
 //! Energy Turbo: a pickup of its own, handed out in place of every second Turbo.
 //!
 //! - **Pick it up**: `pickup_roll` swaps every second Turbo a weapon pad draws for this
-//!   pickup; `hud_tint` draws it as the Turbo's icon on a red backdrop; while boosting, `hud_bar_extra` and `hud_shake` show the added thrust and the drain. The engine
+//!   pickup; `hud_tint` draws it as the Turbo's icon on a red backdrop; while boosting, `hud_bar_extra` and `hud_shake` show the added speed and the drain. The engine
 //!   never fires or absorbs it.
 //! - **Hold fire**: the craft boosts (`scale_thrust`) and pays from its shield
 //!   (`shield_delta`) while fire is held and the pool lasts. An AI craft holds no
@@ -132,9 +132,9 @@ fn boost(
     *delta -= cost;
     memory.spent += cost;
     let _ = reply.scale_thrust(craft, BOOST_FACTOR);
-    // The thrust bar shows the vanilla share and, blending into red, the share this
+    // The speed bar shows the vanilla share and, blending into red, the share this
     // turbo adds; the energy bar shakes while it drains.
-    let _ = reply.hud_bar_extra(craft, HudElement::Thrust, BOOST_FACTOR - 1.0, RED);
+    let _ = reply.hud_bar_extra(craft, HudElement::Speed, BOOST_FACTOR - 1.0, RED);
     let _ = reply.hud_shake(craft, HudElement::Energy, SHAKE);
     if memory.spark == 0 {
         let _ = reply.fire_effect(craft, Effect::CollisionSpark);
@@ -268,7 +268,7 @@ mod tests {
         );
         assert!(first.contains(&Command::HudBarExtra {
             slot: me,
-            element: HudElement::Thrust,
+            element: HudElement::Speed,
             extra: BOOST_FACTOR - 1.0,
             rgba: RED
         }));
