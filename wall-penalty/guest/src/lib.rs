@@ -1,4 +1,4 @@
-//! Kiss Curse: a craft that touches a wall has its engine cursed, a quarter of its
+//! Wall Penalty: a craft that touches a wall has its engine cursed, a quarter of its
 //! thrust for a second and a half, renewed by every tick it stays on the wall.
 //!
 //! A simulation module on OpenAntiGrav's guest SDK (`oag-ext`). The guest keeps
@@ -27,9 +27,9 @@ oag_ext::blob! {
     }
 }
 
-pub struct KissCurse;
+pub struct WallPenalty;
 
-impl Extension for KissCurse {
+impl Extension for WallPenalty {
     type State = Curses;
 
     fn tick(obs: &Observation<'_>, state: &mut Curses, reply: &mut Reply<'_>) {
@@ -55,7 +55,7 @@ impl Extension for KissCurse {
     }
 }
 
-oag_ext::export!(KissCurse);
+oag_ext::export!(WallPenalty);
 
 #[cfg(test)]
 mod tests {
@@ -71,7 +71,7 @@ mod tests {
             racing: true,
             ..CraftRecord::default()
         };
-        let mut race = Race::<KissCurse>::new().with_craft(one, racer);
+        let mut race = Race::<WallPenalty>::new().with_craft(one, racer);
         race.event(Event::WallContact { slot: one })
             .event(Event::WallContact { slot: two });
         let cursed = [Command::ScaleThrust {

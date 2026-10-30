@@ -1,17 +1,17 @@
-# Kiss Curse: a craft that touches a wall loses far more speed than it would. The
+# Wall Penalty: a craft that touches a wall loses far more speed than it would. The
 # first simulation mod (OpenAntiGrav's docs/architecture/wasm-extensions/). Runs only
 # in a build with the `extensions` cargo feature; without it the race says the module
 # was left out and runs vanilla. A rules module: it acts on every craft, a person's
 # and the AI's alike, in every race but the original campaigns.
 #
-# The module is built from guest/ (`guest/build.sh`); ext/kiss_curse.wasm is that
+# The module is built from guest/ (`guest/build.sh`); ext/wall_penalty.wasm is that
 # build, committed.
 
 toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
 
 [mod]
-id = "oag.kiss-curse"
-name = "Kiss Curse"
+id = "oag.wall-penalty"
+name = "Wall Penalty"
 version = "1.0.0"
 authors = ["The OpenAntiGrav contributors"]
 license = "MIT OR Apache-2.0"
@@ -27,4 +27,4 @@ memory_pages = 2
 state_bytes = 16
 
 [extension.rules]
-module = "ext/kiss_curse.wasm"
+module = "ext/wall_penalty.wasm"
