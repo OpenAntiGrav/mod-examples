@@ -19,7 +19,7 @@
 #![cfg_attr(not(test), no_std)]
 
 use oag_ext::{
-    Craft, Cue, Effect, Event, Extension, HudElement, Observation, Pickup, Reply, Rgba, Slot, Weapon,
+    Craft, Cue, Event, Extension, HudElement, Observation, Pickup, Reply, Rgba, Slot, Weapon,
 };
 
 // The numbers below are chosen, not measured.
@@ -41,8 +41,10 @@ const AI_BURST: u16 = 60;
 const AI_REST: u16 = 120;
 /// One Turbo in this many becomes this pickup.
 const ROLL_EVERY: u8 = 2;
-/// Ticks between two spark bursts at the nozzle.
-const SPARK_EVERY: u8 = 20;
+/// Ticks between two discharges at the nozzle.
+const SPARK_EVERY: u8 = 10;
+/// The mod's own discharge: `fx/discharge.toml`, the first of its `[effects]` by name.
+const DISCHARGE: u16 = 0;
 /// The energy bar's shake while the turbo drains, in HUD pixels. Chosen.
 const SHAKE: f32 = 2.0;
 const RED: Rgba = Rgba::new(0xE0, 0x20, 0x20, 0xFF);
@@ -120,7 +122,7 @@ fn ai_wants_boost(memory: &mut Memory, fired: bool) -> bool {
     wants
 }
 
-/// One boosting tick: thrust, the drain (added to `delta`), sparks at the nozzle. The
+/// One boosting tick: thrust, the drain (added to `delta`), a discharge at the nozzle. The
 /// cue is returned on the tick the boost starts.
 fn boost(
     reply: &mut Reply<'_>,
@@ -137,7 +139,7 @@ fn boost(
     let _ = reply.hud_bar_extra(craft, HudElement::Speed, BOOST_FACTOR - 1.0, RED);
     let _ = reply.hud_shake(craft, HudElement::Energy, SHAKE);
     if memory.spark == 0 {
-        let _ = reply.fire_effect(craft, Effect::CollisionSpark);
+        let _ = reply.fire_mod_effect(craft, DISCHARGE);
         memory.spark = SPARK_EVERY;
     }
     memory.spark -= 1;

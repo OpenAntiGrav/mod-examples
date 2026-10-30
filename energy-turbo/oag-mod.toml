@@ -24,3 +24,8 @@ state_bytes = 96
 
 [extension.rules]
 module = "ext/energy_turbo.wasm"
+
+# The mod's own particle effects (schemas/v1/effect.tosd), named by their place in this
+# table's name order from `fire_mod_effect`.
+[effects]
+discharge = "fx/discharge.toml"

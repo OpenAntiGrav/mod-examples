@@ -1,0 +1,21 @@
+# Wall Penalty's own effect: a puff of sputtering smoke at the nozzle while a craft is
+# cursed, fired by guest/src/lib.rs as `fire_mod_effect(craft, 0)`. Units are the
+# engine's: ticks (60 a second), world units per tick, degrees. See
+# schemas/v1/effect.tosd and docs/architecture/wasm-extensions/.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/effect.tosd", version = "1.0.0" }
+
+axis = "rear"
+
+[[emitter]]
+name = "smoke"
+duration = 4
+per-emission = [2, 3]
+lifetime = [26, 8]
+speed = [0.25, 0.15]
+spread = 40
+drag = 0.97
+blend = "alpha-over"
+size = [[0.0, 0.7], [1.0, 1.8]]
+alpha = [[0.0, 0.8], [0.5, 0.5], [1.0, 0.0]]
+colour = [[0.0, "#8a847a"], [1.0, "#2a2622"]]

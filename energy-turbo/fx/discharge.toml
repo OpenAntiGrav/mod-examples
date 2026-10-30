@@ -1,0 +1,32 @@
+# Energy Turbo's own effect: a red energy discharge at the nozzle while boosting, fired
+# by guest/src/lib.rs as `fire_mod_effect(craft, 0)` (effects sort by name). Units are the
+# engine's: ticks (60 a second), world units per tick, degrees. See
+# schemas/v1/effect.tosd and docs/architecture/wasm-extensions/.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/effect.tosd", version = "1.0.0" }
+
+axis = "rear"
+
+[[emitter]]
+name = "core"
+duration = 3
+per-emission = [4, 6]
+lifetime = [9, 3]
+speed = [0.7, 0.4]
+spread = 28
+drag = 0.93
+size = [[0.0, 0.55], [1.0, 0.1]]
+alpha = [[0.0, 1.0], [0.6, 0.7], [1.0, 0.0]]
+colour = [[0.0, "#ff6a48"], [0.25, "#ff2a18"], [1.0, "#600008"]]
+
+[[emitter]]
+name = "arcs"
+duration = 3
+per-emission = [1, 2]
+lifetime = [5, 2]
+speed = [2.2, 0.8]
+spread = 50
+drag = 0.88
+size = [[0.0, 0.45], [1.0, 0.05]]
+alpha = [[0.0, 1.0], [1.0, 0.0]]
+colour = [[0.0, "#ffffff"], [0.4, "#ff2020"], [1.0, "#400000"]]

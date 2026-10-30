@@ -28,3 +28,8 @@ state_bytes = 16
 
 [extension.rules]
 module = "ext/wall_penalty.wasm"
+
+# The mod's own particle effects (schemas/v1/effect.tosd), named by their place in this
+# table's name order from `fire_mod_effect`.
+[effects]
+sputter = "fx/sputter.toml"

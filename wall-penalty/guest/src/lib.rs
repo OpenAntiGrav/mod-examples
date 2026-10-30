@@ -17,6 +17,10 @@ use oag_ext::{Event, Extension, Observation, Reply, Slot};
 const CURSE_TICKS: u16 = 90;
 /// The engine output a cursed craft keeps.
 const CURSE_FACTOR: f32 = 0.25;
+/// Ticks between two puffs of smoke at a cursed craft's nozzle.
+const PUFF_EVERY: u16 = 6;
+/// The mod's own smoke: `fx/sputter.toml`, the first of its `[effects]` by name.
+const SPUTTER: u16 = 0;
 /// Grid slots this mod tracks: one countdown each.
 const SLOTS: usize = 8;
 
@@ -50,6 +54,9 @@ impl Extension for WallPenalty {
             if let Some(craft) = Slot::new(index).and_then(|slot| obs.craft(slot)) {
                 // Refused only past 64 commands; eight slots send at most eight.
                 let _ = reply.scale_thrust(&craft, CURSE_FACTOR);
+                if *left % PUFF_EVERY == 0 {
+                    let _ = reply.fire_mod_effect(&craft, SPUTTER);
+                }
             }
         }
     }
@@ -78,8 +85,24 @@ mod tests {
             slot: one,
             factor: CURSE_FACTOR,
         }];
-        for _ in 0..CURSE_TICKS {
-            assert_eq!(race.tick(), cursed);
+        let puffing = [
+            Command::ScaleThrust {
+                slot: one,
+                factor: CURSE_FACTOR,
+            },
+            Command::FireModEffect {
+                slot: one,
+                index: SPUTTER,
+            },
+        ];
+        for tick in 0..CURSE_TICKS {
+            let left = CURSE_TICKS - 1 - tick;
+            let expected: &[Command] = if left % PUFF_EVERY == 0 {
+                &puffing
+            } else {
+                &cursed
+            };
+            assert_eq!(race.tick(), expected, "tick {tick}");
         }
         assert!(race.tick().is_empty());
         assert_eq!(race.state().countdown, [0; SLOTS]);
