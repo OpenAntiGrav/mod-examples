@@ -186,7 +186,7 @@ player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane wit
 
 Rust on `oag-ext` is the way to write a mod. `wall-penalty-js/` shows the only other route that
 meets the rules: JavaScript built with Javy (QuickJS in core wasm) behind a guest-side shim.
-Choose it only to see what it costs: **a JavaScript tick spends 155,000 to 230,000 of the 200,000
+Choose it only to see what it costs: **a JavaScript tick spends 155,000 to 228,000 of the 200,000
 fuel** (Rust Wall Penalty: about 500), so a mod doing more than a few hundred bytecode operations a
 tick faults out of fuel; the module is 1.37 MB against 627 bytes; the host spends about 1 s
 compiling it at race load.

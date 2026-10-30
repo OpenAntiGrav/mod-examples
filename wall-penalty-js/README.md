@@ -8,7 +8,7 @@ Rust on `oag-ext`).
 | | Rust (`wall-penalty`) | JavaScript (this) |
 | --- | --- | --- |
 | Module | 627 bytes | 1,367,899 bytes |
-| Fuel a tick (budget 200,000) | 663 peak, 524 mean | 155,800 empty, 168,700 peak in the one-craft race, 178,800 in a 12-craft field, 229,000 worst case (every slot cursed at once: faults) |
+| Fuel a tick (budget 200,000) | 663 peak, 524 mean | 154,800 empty, 167,700 peak in the one-craft race, 177,800 in a 12-craft field, 228,000 worst case (every slot cursed at once: faults) |
 | Call, debug host, mean | 19 us | 89 us |
 | Compile at race load | negligible | about 1.1 s (Cranelift) |
 | Memory | 2 pages | 22 pages at start, no growth in a tick |
