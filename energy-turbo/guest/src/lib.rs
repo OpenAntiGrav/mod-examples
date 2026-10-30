@@ -7,7 +7,9 @@
 //!   (`shield_delta`) while fire is held and the pool lasts. An AI craft holds no
 //!   button: it boosts for a 1 s burst when its driver fires, then rests 2 s.
 //! - **Absorb it**: half of the energy spent on it comes back.
-//! - **Speed pads**: while it is carried, a pad fills the pool instead of boosting.
+//! - **Speed pads**: while it is carried, a pad fills the pool instead of boosting:
+//!   `scale_slot_pads` at 0 takes the pad's push, and the `SpeedPad` event that a
+//!   craft scaled so on the tick it entered hears pays the energy.
 //!
 //! The drain stops short of wrecking the craft, but a hit on a drained pool wrecks it
 //! as any hit does.
@@ -58,9 +60,12 @@ oag_ext::blob! {
         pub spark: u8,
         /// An AI craft's burst-and-rest ticks left.
         pub rest: u16,
+        /// It sent its slot's speed pads to 0 last tick, so a pad entered then gave no
+        /// boost and pays energy.
+        pub pad_held: bool,
         /// Pads the record to 12 bytes. The fields keep the order the module was first
         /// built with, so the blob layout does not move.
-        pub _spare: u16,
+        pub _spare: u8,
     }
 }
 
@@ -88,8 +93,8 @@ impl Events {
             match event {
                 Event::PickupFire { slot } => events.fired |= slot.bit(),
                 Event::PickupAbsorbed { slot } => events.absorbed |= slot.bit(),
-                Event::PadEnergy { slot } => events.pads |= slot.bit(),
-                Event::WallContact { .. } => {}
+                Event::SpeedPad { slot, .. } => events.pads |= slot.bit(),
+                _ => {}
             }
         }
         events
@@ -181,11 +186,12 @@ impl Extension for EnergyTurbo {
                 continue;
             }
 
-            let _ = reply.pad_mode(&craft);
+            let _ = reply.scale_slot_pads(&craft, 0.0);
             let _ = reply.pickup_tint(&craft, RED);
-            if has(events.pads, &craft) {
+            if has(events.pads, &craft) && memory.pad_held {
                 delta += craft.shield_max() * PAD_SHARE;
             }
+            memory.pad_held = true;
             let wants = if craft.is_person() {
                 craft.fire_held()
             } else {
@@ -239,7 +245,10 @@ mod tests {
                     weapon: Weapon::Turbo,
                     every: ROLL_EVERY
                 },
-                Command::PadMode { slot: me },
+                Command::ScaleSlotPads {
+                    slot: me,
+                    factor: 0.0
+                },
                 Command::PickupTint {
                     slot: me,
                     rgba: RED
@@ -276,6 +285,25 @@ mod tests {
             ]
         );
         assert_eq!(race.state().slots[0].spent, 0.0);
+    }
+
+    #[test]
+    fn a_speed_pad_pays_energy_only_when_entered_with_the_pads_held_at_zero() {
+        let me = Slot::new(1).unwrap();
+        let pad = |race: &mut Race<EnergyTurbo>| {
+            race.event(Event::SpeedPad { slot: me, pad: 0 });
+            race.tick()
+                .iter()
+                .find_map(|c| match c {
+                    Command::ShieldDelta { amount, .. } => Some(*amount),
+                    _ => None,
+                })
+        };
+        let mut race = Race::<EnergyTurbo>::new().with_craft(me, carrier(true, false));
+        // The pickup arrived this tick: the pad entered last tick boosted as ever.
+        assert_eq!(pad(&mut race), None);
+        // Carried since: the pads were held at zero, so the next one pays.
+        assert_eq!(pad(&mut race), Some(100.0 * PAD_SHARE));
     }
 
     #[test]
