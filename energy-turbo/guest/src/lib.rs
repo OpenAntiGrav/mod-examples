@@ -16,7 +16,9 @@
 //! module's memory; each slot's numbers live in the state blob the host owns.
 #![cfg_attr(not(test), no_std)]
 
-use oag_ext::{Cue, Effect, Event, Extension, Observation, Pickup, Reply, Rgba, Slot, Weapon};
+use oag_ext::{
+    Craft, Cue, Effect, Event, Extension, Observation, Pickup, Reply, Rgba, Slot, Weapon,
+};
 
 // The numbers below are chosen, not measured.
 
@@ -26,8 +28,7 @@ const BOOST_FACTOR: f32 = 1.9;
 const DRAIN_SHARE: f32 = 0.008;
 /// No boost below this share of the pool, so the drain alone never wrecks a craft.
 const FLOOR_SHARE: f32 = 0.05;
-/// What an absorb gives back of the energy spent: the maintainer's cap, so absorbing is
-/// a choice rather than nothing.
+/// The share of the energy spent that an absorb gives back: the maintainer's cap.
 const PAYBACK: f32 = 0.5;
 /// What a speed pad gives while the turbo is carried, as a share of the pool.
 const PAD_SHARE: f32 = 0.15;
@@ -41,7 +42,6 @@ const ROLL_EVERY: u8 = 2;
 /// Ticks between two spark bursts at the nozzle.
 const SPARK_EVERY: u8 = 20;
 const RED: Rgba = Rgba::new(0xE0, 0x20, 0x20, 0xFF);
-/// Grid slots this mod tracks.
 const SLOTS: usize = 8;
 
 oag_ext::blob! {
@@ -58,6 +58,8 @@ oag_ext::blob! {
         pub spark: u8,
         /// An AI craft's burst-and-rest ticks left.
         pub rest: u16,
+        /// Pads the record to 12 bytes. The fields keep the order the module was first
+        /// built with, so the blob layout does not move.
         pub _spare: u16,
     }
 }
@@ -71,20 +73,92 @@ oag_ext::blob! {
 
 pub struct EnergyTurbo;
 
+/// This tick's events, one bit per slot each.
+#[derive(Default)]
+struct Events {
+    fired: u32,
+    absorbed: u32,
+    pads: u32,
+}
+
+impl Events {
+    fn read(obs: &Observation<'_>) -> Self {
+        let mut events = Self::default();
+        for event in obs.events() {
+            match event {
+                Event::PickupFire { slot } => events.fired |= slot.bit(),
+                Event::PickupAbsorbed { slot } => events.absorbed |= slot.bit(),
+                Event::PadEnergy { slot } => events.pads |= slot.bit(),
+                Event::WallContact { .. } => {}
+            }
+        }
+        events
+    }
+}
+
+fn has(mask: u32, craft: &Craft<'_>) -> bool {
+    mask & craft.slot().bit() != 0
+}
+
+/// Starts, runs down and rests an AI craft's burst. It holds no button, so its driver
+/// firing the Turbo is the only signal.
+fn ai_wants_boost(memory: &mut Memory, fired: bool) -> bool {
+    if memory.burst == 0 && memory.rest == 0 && fired {
+        memory.burst = AI_BURST;
+        memory.rest = AI_BURST + AI_REST;
+    }
+    memory.rest = memory.rest.saturating_sub(1);
+    let wants = memory.burst > 0;
+    memory.burst = memory.burst.saturating_sub(1);
+    wants
+}
+
+/// One boosting tick: thrust, the drain (added to `delta`), sparks at the nozzle. The
+/// cue is returned on the tick the boost starts.
+fn boost(
+    reply: &mut Reply<'_>,
+    craft: &Craft<'_>,
+    memory: &mut Memory,
+    delta: &mut f32,
+) -> Option<Cue> {
+    let cost = craft.shield_max() * DRAIN_SHARE;
+    *delta -= cost;
+    memory.spent += cost;
+    let _ = reply.scale_thrust(craft, BOOST_FACTOR);
+    if memory.spark == 0 {
+        let _ = reply.fire_effect(craft, Effect::CollisionSpark);
+        memory.spark = SPARK_EVERY;
+    }
+    memory.spark -= 1;
+    (!memory.boosting).then_some(Cue::Turbo)
+}
+
+/// The host refuses a change beyond the pool's maximum either way. An `if` chain rather
+/// than `clamp` or `min`/`max`: it builds about 30 bytes smaller.
+fn bounded(delta: f32, max: f32) -> f32 {
+    if delta > max {
+        max
+    } else if delta < -max {
+        -max
+    } else {
+        delta
+    }
+}
+
+fn settle(reply: &mut Reply<'_>, craft: &Craft<'_>, delta: f32, cue: Option<Cue>) {
+    if delta != 0.0 {
+        let _ = reply.shield_delta(craft, bounded(delta, craft.shield_max()));
+    }
+    if let Some(cue) = cue {
+        let _ = reply.play_cue(craft, cue);
+    }
+}
+
 impl Extension for EnergyTurbo {
     type State = Slots;
 
     fn tick(obs: &Observation<'_>, state: &mut Slots, reply: &mut Reply<'_>) {
-        // This tick's events, one bit per slot each.
-        let (mut fired, mut absorbed, mut pads) = (0_u32, 0_u32, 0_u32);
-        for event in obs.events() {
-            match event {
-                Event::PickupFire { slot } => fired |= slot.bit(),
-                Event::PickupAbsorbed { slot } => absorbed |= slot.bit(),
-                Event::PadEnergy { slot } => pads |= slot.bit(),
-                Event::WallContact { .. } => {}
-            }
-        }
+        let events = Events::read(obs);
         // Replies are refused only past the command cap or outside their bounds, which
         // this module never reaches, so their results are dropped.
         let _ = reply.pickup_roll(Weapon::Turbo, ROLL_EVERY);
@@ -93,70 +167,40 @@ impl Extension for EnergyTurbo {
                 *memory = Memory::default();
                 continue;
             };
-            let bit = |mask: u32| mask & craft.slot().bit() != 0;
-            let (shield, max) = (craft.shield(), craft.shield_max());
+
             let mut delta = 0.0_f32;
             let mut cue = None;
-
-            if bit(absorbed) && memory.spent > 0.0 {
+            if has(events.absorbed, &craft) && memory.spent > 0.0 {
                 delta += memory.spent * PAYBACK;
                 cue = Some(Cue::Absorb);
             }
             if craft.pickup() != Pickup::Ours || !craft.is_racing() {
                 // Absorbed, wrecked or replaced: this turbo's account is closed.
                 *memory = Memory::default();
+                settle(reply, &craft, delta, cue);
+                continue;
+            }
+
+            let _ = reply.pad_mode(&craft);
+            let _ = reply.pickup_tint(&craft, RED);
+            if has(events.pads, &craft) {
+                delta += craft.shield_max() * PAD_SHARE;
+            }
+            let wants = if craft.is_person() {
+                craft.fire_held()
             } else {
-                let _ = reply.pad_mode(&craft);
-                let _ = reply.pickup_tint(&craft, RED);
-                if bit(pads) {
-                    delta += max * PAD_SHARE;
-                }
-                if !craft.is_person() {
-                    if memory.burst == 0 && memory.rest == 0 && bit(fired) {
-                        memory.burst = AI_BURST;
-                        memory.rest = AI_BURST + AI_REST;
-                    }
-                    memory.rest = memory.rest.saturating_sub(1);
-                }
-                let wants = if craft.is_person() {
-                    craft.fire_held()
-                } else {
-                    memory.burst > 0
-                };
-                memory.burst = memory.burst.saturating_sub(1);
-                let cost = max * DRAIN_SHARE;
-                let boosting = wants && shield + delta - cost > max * FLOOR_SHARE;
-                if boosting {
-                    let _ = reply.scale_thrust(&craft, BOOST_FACTOR);
-                    delta -= cost;
-                    memory.spent += cost;
-                    if !memory.boosting {
-                        cue = Some(Cue::Turbo);
-                    }
-                    if memory.spark == 0 {
-                        let _ = reply.fire_effect(&craft, Effect::CollisionSpark);
-                        memory.spark = SPARK_EVERY;
-                    }
-                    memory.spark -= 1;
-                } else {
-                    memory.spark = 0;
-                }
-                memory.boosting = boosting;
+                ai_wants_boost(memory, has(events.fired, &craft))
+            };
+            let affordable = craft.shield() + delta - craft.shield_max() * DRAIN_SHARE
+                > craft.shield_max() * FLOOR_SHARE;
+            let boosting = wants && affordable;
+            if boosting {
+                cue = boost(reply, &craft, memory, &mut delta).or(cue);
+            } else {
+                memory.spark = 0;
             }
-            if delta != 0.0 {
-                // The host refuses a change beyond the pool's maximum either way.
-                let bounded = if delta > max {
-                    max
-                } else if delta < -max {
-                    -max
-                } else {
-                    delta
-                };
-                let _ = reply.shield_delta(&craft, bounded);
-            }
-            if let Some(cue) = cue {
-                let _ = reply.play_cue(&craft, cue);
-            }
+            memory.boosting = boosting;
+            settle(reply, &craft, delta, cue);
         }
     }
 }
