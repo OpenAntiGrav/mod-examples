@@ -138,8 +138,21 @@ a stand-alone clone needs a git dependency pinned to the ABI revision instead
 - **A fault turns the module off for the rest of the race** (the tick it faulted on is
   hashed). Causes: out of fuel, any trap (`unreachable`, out of bounds, stack overflow), a
   refused reply (NaN, a factor out of range, a slot with no craft, more than 96 commands,
-  `tick` returning non-zero, a state length that differs from the manifest). The commands
-  of that call are discarded and the blob keeps its prior value.
+  more than 8 `fire_effect` / `fire_mod_effect` in one tick, `tick` returning non-zero), or a
+  rule the host can check only as it applies the reply (an `emit` past 4 a tick or on a channel
+  your mod does not publish; a pickup command from a module that does not own the pickup, or from
+  a mod with no `[pickup]`). The commands of that call are discarded, **all of them**, and the
+  blob keeps its prior value. What the module held for the whole race is handed back: its
+  `scale_pad`s return to 1.0, its `pickup_roll` ends, and a mod pickup a craft still holds
+  becomes the weapon the pad drew (rolled) or is taken away (given).
+- **Refused at load, by name** (the mod is left out, or its manifest does not parse and the MODS
+  page shows why): a wrong `api`, `memory_pages` outside 1 to 256, `state_bytes` over 1,024,
+  an `[extension]` with neither `[extension.rules]` nor `[extension.track]`, an `[icons]` name
+  over 48 bytes, a `state_bytes` that differs from the guest's `oag_state_len`, and an export
+  (`tick`, `oag_io`, `oag_track`, `oag_state_len`, `oag_abi`) that is not `() -> i32`.
+- **Event caps.** A tick delivers at most 16 `mod` events from modules and 8 from the track's
+  triggers, each class apart; past a cap the later in sorted order (channel, slot, sender,
+  value) are dropped, counted and logged by the host, never a fault.
 - **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (3 now; ABI 1 is edited in place before release, so rebuild every module against the engine you run: the event record is 16 bytes now). A module built for
   another revision is refused by name: rebuild against the engine you run.
 - A pickup of the mod's own (`Pickup::Ours`): one module owns the kind per race, and a race
@@ -158,7 +171,7 @@ a stand-alone clone needs a git dependency pinned to the ABI revision instead
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect`, `fire_mod_effect`, `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect` / `fire_mod_effect` (together at most 8 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
