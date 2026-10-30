@@ -1,12 +1,7 @@
-# Energy Turbo: a pickup of its own, handed out in place of every second Turbo, drawn
-# as the Turbo on a red backdrop.
-# Hold fire to boost for as long as the pool lasts, paid for in shield energy; absorb
-# it to get half of what you spent back; carry it over a speed pad and the pad fills
-# the pool instead of boosting. Spending your shield is the risk: a hit on an empty
-# pool wrecks you. A simulation mod (OpenAntiGrav's docs/architecture/wasm-extensions/):
-# runs only in a build with the `extensions` cargo feature, in races with weapons.
-#
-# Built from guest/ (`guest/build.sh`); ext/energy_turbo.wasm is that build, committed.
+# Energy Turbo: a pickup of its own, handed out in place of every second Turbo. A
+# simulation mod (docs/architecture/wasm-extensions/): it runs only in a build with the
+# `extensions` cargo feature, in races with weapons. Rules are in guest/src/lib.rs;
+# ext/energy_turbo.wasm is `guest/build.sh`'s output, committed.
 
 toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
 
@@ -24,8 +19,7 @@ titles = ["wipeout-pulse"]
 simulation = true
 api = 1
 memory_pages = 2
-# Per grid slot, 12 bytes: energy spent (f32), AI burst ticks (u16), boosting last
-# tick (u8), spark countdown (u8), AI burst-and-rest ticks (u16), 2 spare.
+# 8 grid slots of 12 bytes each (guest `Memory`).
 state_bytes = 96
 
 [extension.rules]

@@ -1,5 +1,5 @@
-# Its own workspace: not a member of OpenAntiGrav's. Built for
-# wasm32-unknown-unknown (`build.sh`); `cargo test` runs its logic natively.
+# Its own workspace, built for wasm32-unknown-unknown by `build.sh`; `cargo test` runs
+# the logic natively.
 [workspace]
 
 [package]
@@ -13,9 +13,8 @@ publish = false
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
-# The guest SDK, from the engine repository this submodule sits in. A stand-alone
-# clone needs a git dependency on the engine instead, pinned to the ABI revision the
-# committed module was built for.
+# A stand-alone clone needs a git dependency on the engine, pinned to the ABI revision
+# the committed module was built for.
 [dependencies]
 oag-ext = { path = "../../../../../crates/ext" }
 

@@ -1,58 +1,51 @@
 //! Energy Turbo: a pickup of its own, handed out in place of every second Turbo.
 //!
-//! - **Pick it up**: the module asks the engine (`pickup_roll`) to hand out its own
-//!   pickup in place of every second Turbo a weapon pad draws, so half the Turbos stay
-//!   the title's own. The HUD draws it with the Turbo's icon on a red backdrop
-//!   (`pickup_tint`); the engine never fires or absorbs it.
-//! - **Hold fire**: the craft boosts (`scale_thrust` above 1) and pays for it from its
-//!   shield (`shield_delta`), for as long as fire is held and the pool lasts. An AI
-//!   craft, which holds no button, boosts for a fixed 1 s burst when its driver fires
-//!   (where it would fire a Turbo), then rests 2 s before another.
-//!   A Turbo cue on each boost start, the title's wall sparks at the nozzle while it
-//!   runs.
-//! - **Absorb it**: the pickup is gone and half of the energy spent on it comes back.
-//! - **Speed pads**: while it is carried, a pad gives no boost (`pad_mode`) and fills
-//!   the pool instead, a separate income that is not part of the absorb's half.
+//! - **Pick it up**: `pickup_roll` swaps every second Turbo a weapon pad draws for this
+//!   pickup; `pickup_tint` draws it as the Turbo's icon on a red backdrop. The engine
+//!   never fires or absorbs it.
+//! - **Hold fire**: the craft boosts (`scale_thrust`) and pays from its shield
+//!   (`shield_delta`) while fire is held and the pool lasts. An AI craft holds no
+//!   button: it boosts for a 1 s burst when its driver fires, then rests 2 s.
+//! - **Absorb it**: half of the energy spent on it comes back.
+//! - **Speed pads**: while it is carried, a pad fills the pool instead of boosting.
 //!
-//! The risk is the empty pool: the drain stops short of wrecking the craft, but a hit on
-//! a drained pool wrecks it as any hit does.
+//! The drain stops short of wrecking the craft, but a hit on a drained pool wrecks it
+//! as any hit does.
 //!
-//! A simulation module on OpenAntiGrav's guest SDK (`oag-ext`). Nothing survives a tick
-//! in this module's memory; each slot's numbers live in the 96-byte state blob the host
-//! owns.
+//! A simulation module on the `oag-ext` guest SDK. Nothing survives a tick in this
+//! module's memory; each slot's numbers live in the state blob the host owns.
 #![cfg_attr(not(test), no_std)]
 
 use oag_ext::{Cue, Effect, Event, Extension, Observation, Pickup, Reply, Rgba, Slot, Weapon};
 
-/// Thrust while boosting. Chosen.
+// The numbers below are chosen, not measured.
+
+/// Thrust factor while boosting.
 const BOOST_FACTOR: f32 = 1.9;
-/// Energy a boosting tick costs, as a share of the craft's pool (about 48 % a second).
-/// Chosen.
+/// A boosting tick's cost, as a share of the craft's pool (about 48 % a second).
 const DRAIN_SHARE: f32 = 0.008;
-/// No boost below this share of the pool: the drain alone never wrecks a craft. Chosen.
+/// No boost below this share of the pool, so the drain alone never wrecks a craft.
 const FLOOR_SHARE: f32 = 0.05;
-/// What an absorb gives back of the energy spent on the turbo it absorbs. The
-/// maintainer's cap, taken at the cap rather than "nothing" so absorbing is a choice.
+/// What an absorb gives back of the energy spent: the maintainer's cap, so absorbing is
+/// a choice rather than nothing.
 const PAYBACK: f32 = 0.5;
-/// What a speed pad gives while the turbo is carried, as a share of the pool. Chosen.
+/// What a speed pad gives while the turbo is carried, as a share of the pool.
 const PAD_SHARE: f32 = 0.15;
-/// An AI craft's boost per decision to fire, ticks (1 s). Chosen.
+/// An AI craft's boost per decision to fire, in ticks (1 s).
 const AI_BURST: u16 = 60;
-/// Ticks an AI craft waits after a burst before its next: its driver asks every tick
-/// the Turbo gate passes, so without a rest it would boost down every straight. Chosen.
+/// Ticks an AI craft rests after a burst; its driver asks every tick the Turbo gate
+/// passes, so without a rest it would boost down every straight.
 const AI_REST: u16 = 120;
-/// The share of the title's Turbos handed out as this pickup instead: every second.
-/// Chosen.
+/// One Turbo in this many becomes this pickup.
 const ROLL_EVERY: u8 = 2;
-/// Ticks between two spark bursts at the nozzle. Chosen.
+/// Ticks between two spark bursts at the nozzle.
 const SPARK_EVERY: u8 = 20;
-/// The backdrop's red. Chosen.
 const RED: Rgba = Rgba::new(0xE0, 0x20, 0x20, 0xFF);
-/// Grid slots this mod tracks: one record each.
+/// Grid slots this mod tracks.
 const SLOTS: usize = 8;
 
 oag_ext::blob! {
-    /// One slot's account of the turbo it carries.
+    /// One slot's account of the turbo it carries (12 bytes).
     #[derive(Clone, Copy, Default)]
     pub struct Memory {
         /// Energy spent on it so far.
@@ -65,7 +58,6 @@ oag_ext::blob! {
         pub spark: u8,
         /// An AI craft's burst-and-rest ticks left.
         pub rest: u16,
-        /// Keeps the record at 12 bytes, the layout the module was first built with.
         pub _spare: u16,
     }
 }
@@ -93,8 +85,8 @@ impl Extension for EnergyTurbo {
                 Event::WallContact { .. } => {}
             }
         }
-        // Race-wide; the same rule each tick keeps its count. Every refusal below is
-        // ruled out by construction (at most 49 commands, values bounded).
+        // Replies are refused only past the command cap or outside their bounds, which
+        // this module never reaches, so their results are dropped.
         let _ = reply.pickup_roll(Weapon::Turbo, ROLL_EVERY);
         for (index, memory) in state.slots.iter_mut().enumerate() {
             let Some(craft) = Slot::new(index).and_then(|slot| obs.craft(slot)) else {
@@ -106,7 +98,6 @@ impl Extension for EnergyTurbo {
             let mut delta = 0.0_f32;
             let mut cue = None;
 
-            // Absorbed: half of what this turbo cost comes back.
             if bit(absorbed) && memory.spent > 0.0 {
                 delta += memory.spent * PAYBACK;
                 cue = Some(Cue::Absorb);
@@ -153,7 +144,7 @@ impl Extension for EnergyTurbo {
                 memory.boosting = boosting;
             }
             if delta != 0.0 {
-                // The host refuses more than the pool's maximum either way.
+                // The host refuses a change beyond the pool's maximum either way.
                 let bounded = if delta > max {
                     max
                 } else if delta < -max {
@@ -188,6 +179,7 @@ mod tests {
             shield: 100.0,
             shield_max: 100.0,
             speed_kmh: 400.0,
+            ..CraftRecord::default()
         }
     }
 
