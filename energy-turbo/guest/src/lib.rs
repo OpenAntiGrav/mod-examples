@@ -1,8 +1,10 @@
 //! Energy Turbo: a pickup of its own, handed out in place of every second Turbo.
 //!
 //! - **Pick it up**: `pickup_roll` swaps every second Turbo a weapon pad draws for this
-//!   pickup; `hud_tint` draws it as the Turbo's icon on a red backdrop; while boosting, `hud_bar_extra` and `hud_shake` show the added speed and the drain. The engine
-//!   never fires or absorbs it.
+//!   pickup. Its look is the manifest's `[pickup]` (the title's Turbo icon on a translucent
+//!   red backdrop), which the title's own fade plays on; while boosting, `hud_bar_extra`
+//!   and `hud_shake` show the added speed and the drain. The engine never fires or absorbs
+//!   it.
 //! - **Hold fire**: the craft boosts (`scale_thrust`) and pays from its shield
 //!   (`shield_delta`) while fire is held and the pool lasts. An AI craft holds no
 //!   button: it boosts for a 1 s burst when its driver fires, then rests 2 s.
@@ -195,7 +197,6 @@ impl Extension for EnergyTurbo {
             }
 
             let _ = reply.scale_slot_pads(&craft, 0.0);
-            let _ = reply.hud_tint(&craft, HudElement::Pickup, RED);
             if has(events.pads, &craft) && memory.pad_held {
                 delta += craft.shield_max() * PAD_SHARE;
             }
@@ -247,7 +248,7 @@ mod tests {
         let mut race = Race::<EnergyTurbo>::new().with_craft(me, carrier(true, true));
         let first = race.tick();
         assert_eq!(
-            first[..4],
+            first[..3],
             [
                 Command::PickupRoll {
                     weapon: Weapon::Turbo,
@@ -256,11 +257,6 @@ mod tests {
                 Command::ScaleSlotPads {
                     slot: me,
                     factor: 0.0
-                },
-                Command::HudTint {
-                    slot: me,
-                    element: HudElement::Pickup,
-                    rgba: RED
                 },
                 Command::ScaleThrust {
                     slot: me,

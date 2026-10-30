@@ -29,3 +29,9 @@ module = "ext/energy_turbo.wasm"
 # table's name order from `fire_mod_effect`.
 [effects]
 discharge = "fx/discharge.toml"
+
+# The look of the pickup this mod hands out: the title's own Turbo icon on a translucent red
+# backdrop. The title's fade-in, overshoot, size pulse and fade-out play on it.
+[pickup]
+icon = { title = "turbo" }
+colour = { rgba = "E0202080" }
