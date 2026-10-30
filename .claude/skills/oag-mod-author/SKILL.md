@@ -193,7 +193,13 @@ that channel when a craft enters it: modules hear it with `from == TRACK_SENDER`
 file's `[channels] publishes` must name it. **A glTF art animation with `oag_on = "<channel>"`**
 (Blender panel: **Start on**; objects sharing an `oag_anim` name must agree) holds its first
 key until the channel fires, then plays from there. That is visual only: collision never moves.
-`checkpoint-circuit/` publishes `oag.checkpoint-circuit/checkpoint` (the gate's number).
+`checkpoint-circuit/` publishes `oag.checkpoint-circuit/checkpoint` (the gate's number) and is the
+`oag_on` example: each gate's lamp band (`checkpoint_circuit.py`, `oag_on` + `oag_loop = "clamp"`,
+scale keys 1, 7, 37 at 60 fps) swells for a moment when the channel fires. Things it taught: a
+channel carries no filter, so every `oag_on` starts when anyone clears any gate (one channel per
+gate needs the mod to emit per gate); keys restart on each firing; an object's origin is its pivot,
+so build the mesh on its own origin and place it with `matrix_world`; the bake lights it like any
+art, so set a self-lit part's `Col` after the bake.
 
 ## Build, test, run
 

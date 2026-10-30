@@ -33,7 +33,7 @@ ADDON = os.environ.get(
 )
 sys.path.insert(0, ADDON)
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 import oag_track
 from oag_track import derive, f32, scene
@@ -69,6 +69,7 @@ ALBEDO = {
     "wall": (0.45, 0.45, 0.45),
     "terrain": (0.20, 0.30, 0.12),
     "gate": (0.40, 0.40, 0.42),
+    "lamp": (0.95, 0.72, 0.25),
 }
 
 
@@ -121,6 +122,7 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 oag_track.register()
 ctx = bpy.context
 sc = ctx.scene
+sc.render.fps = 60
 sc.oag_track_id = "checkpoint-circuit"
 sc.oag_track_title = "Checkpoint Circuit"
 sc.oag_track_host = "wipeout-pulse"
@@ -420,6 +422,9 @@ tower = material("gate tower", host("startline_tower2.tga", GENERIC), "gate", cu
 beam = material("gate beam", host("Metalbase1.tga"), "gate")
 
 
+lamp = material("gate lamp", host("Metalbase1.tga"), "lamp", culled=False)
+
+
 def box(name, centre, x_axis, y_axis, z_axis, size, mat, tile=16.0):
     hx, hy, hz = (c / 2 for c in size)
     corners = []
@@ -434,6 +439,9 @@ def box(name, centre, x_axis, y_axis, z_axis, size, mat, tile=16.0):
 
 
 GATE_H = 36.0
+LAMP_REST = 1.6  # the band's height at rest, against the beam's 6
+LAMP_LIGHT = (1.0, 0.8, 0.3, 1.0)
+LAMP_PULSE = 2.5  # its growth at the peak, reached 0.1 s after the pass and eased back by 0.6 s
 for name, (x, y), _, props in TRIGGERS:
     if "checkpoint" not in props:
         continue
@@ -443,7 +451,19 @@ for name, (x, y), _, props in TRIGGERS:
     lo, hi = -HALF_WIDTH - 6.0, outer(i) + 6.0
     for k, off in enumerate((lo, hi)):
         box(f"{name} tower {k}", P[i] + g_lat * off + UP * (GATE_H / 2 - 4), g_lat, g_fwd, UP, (6.0, 6.0, GATE_H + 8), tower)
-    box(f"{name} beam", P[i] + g_lat * ((lo + hi) / 2) + UP * GATE_H, g_lat, g_fwd, UP, (hi - lo + 6.0, 5.0, 6.0), beam)
+    centre = P[i] + g_lat * ((lo + hi) / 2) + UP * GATE_H
+    box(f"{name} beam", centre, g_lat, g_fwd, UP, (hi - lo + 6.0, 5.0, 6.0), beam)
+    # A lamp band along the beam, a little proud of both faces. Its mesh sits on its own origin
+    # so the pulse scales it in place: the track file's `oag_on` starts the band's growth when a
+    # craft clears any gate (the mod's `oag.checkpoint-circuit/checkpoint`), then it settles.
+    band = box(f"{name} lamp", Vector((0.0, 0.0, 0.0)), Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)), (hi - lo, 5.6, LAMP_REST), lamp)
+    band.matrix_world = Matrix(((g_lat.x, g_fwd.x, UP.x, centre.x), (g_lat.y, g_fwd.y, UP.y, centre.y), (g_lat.z, g_fwd.z, UP.z, centre.z), (0, 0, 0, 1)))
+    band.oag_on = "oag.checkpoint-circuit/checkpoint"
+    band.oag_loop = "clamp"
+    for frame, grow in ((1, 1.0), (7, LAMP_PULSE), (37, 1.0)):
+        band.scale = (1.0, 1.0, grow)
+        band.keyframe_insert("scale", frame=frame)
+    band.scale = (1.0, 1.0, 1.0)
 
 ground = material("grass", host("Grass.tga"), "terrain")
 G = 4000.0
@@ -505,6 +525,11 @@ TINT = {"pit apron": (0.8, 0.9, 1.25)}
 for ob in ART:
     ob.material_slots[0].material = real[ob.name]
     tint = TINT.get(ob.name, (1.0, 1.0, 1.0))
+    if ob.name.endswith(" lamp"):
+        # A lamp is its own light: a flat warm colour, not the sun's bake.
+        for c in ob.data.color_attributes["Col"].data:
+            c.color = LAMP_LIGHT
+        continue
     for c in ob.data.color_attributes["Col"].data:
         r, g, b, a = c.color
         c.color = tuple(min(1.0, x * EXPOSURE * k) for x, k in zip((r, g, b), tint)) + (a,)

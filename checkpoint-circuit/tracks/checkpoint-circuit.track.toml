@@ -42,7 +42,7 @@ next = [0, 1]
 collision_nodes = 2
 speedup_pads = 2
 weapon_pads = 3
-art_meshes = 20
+art_meshes = 24
 triggers = 5
 
 [art]
