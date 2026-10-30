@@ -28,3 +28,8 @@ state_bytes = 64
 [extension.track]
 module = "ext/checkpoint_circuit.wasm"
 track = "tracks/checkpoint-circuit.track.toml"
+
+# The gate a craft just cleared, `<n>`: anyone may listen (a mod, or a track animation that
+# starts on it).
+[channels]
+publishes = ["oag.checkpoint-circuit/checkpoint"]

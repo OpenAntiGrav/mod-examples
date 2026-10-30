@@ -112,6 +112,12 @@ impl Extension for CheckpointCircuit {
                     {
                         state.left[i] = CHECKPOINT_TICKS;
                         state.next[i] = state.next[i] % course.checkpoints + 1;
+                        // Anyone listening (a mod, or a track animation set to start on
+                        // it) hears which gate; past the per-tick cap a crowd's later
+                        // gates go unannounced.
+                        if let Some(craft) = obs.craft(slot) {
+                            let _ = reply.emit(&craft, oag_ext::channel!("oag.checkpoint-circuit/checkpoint"), n);
+                        }
                     }
                     if entity.prop(oag_ext::prop!("pit")).is_some_and(|v| v != 0.0) {
                         state.pit[i] = 1;

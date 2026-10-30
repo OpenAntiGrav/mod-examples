@@ -35,6 +35,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 | `[extension]` | `simulation = true` (required with a module), `api = 1`, `memory_pages` (1 to 256, default 16; 2 holds the SDK with a 16 KiB stack), `state_bytes` (at most 1,024; must equal the guest's `oag_state_len`) |
 | `[extension.rules]` | `module = "ext/x.wasm"`: runs in every race the mod is on for, every craft, AI too |
 | `[extension.track]` | `module = ...` and `track = "tracks/x.track.toml"`: runs only in a race of that track file, never a disc circuit |
+| `[channels]` | `publishes = ["<mod id>/<name>"]`, `listens = [...]`: the event channels the mod's modules send on and hear (see below). Names are `<mod id>/<name>` (lowercase letters, digits, `-`, `_`; the id may also have `.`); a published one starts with this mod's own id. Malformed, repeated or foreign-namespace names refuse the mod at load, by name. The MODS page shows SENDS and HEARS, and **NO ONE SENDS** when a listened channel is sent by no mod (or track file) that is on |
 | `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its index in **name order** |
 | `[icons]` | `name = "path.png"`: PNGs for `hud_mod_icon` (missing or unreadable draws nothing, load report says so) |
 | `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it |
@@ -60,11 +61,11 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
 - `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`,
   `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `pickup()`.
 - `Event`: `WallContact`, `PickupFire`, `PickupAbsorbed`, `SpeedPad{pad}`, `WeaponPad{pad}`,
-  `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`. At most 32 per call.
+  `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`, `Mod{slot, from, channel, value}`. At most 32 per call; the `Mod` events come first.
 - `Reply`: one method per command, `Result<(), Refused>`. `Refused` is `Full` (96 commands),
   `Repeated` (a second per-craft thrust, shield, pad or route command), `Range`, `HudItems`
   (more than 32 text/icon items per craft per tick, or the string pool full), `Pickup`,
-  `PickupTint` (`hud_tint` of the pickup).
+  `PickupTint` (`hud_tint` of the pickup), `Emits` (more than 4 `emit`s this tick).
   Handle or `let _ =` it on purpose; the host would fault on what the SDK refuses.
 - `Slot` and `Craft`: a command naming a slot takes a `&Craft`, so an empty slot cannot be named.
 - `blob!`: little-endian, field order, no padding; integers, `f32`, `bool`, fixed arrays,
@@ -139,7 +140,7 @@ a stand-alone clone needs a git dependency pinned to the ABI revision instead
   refused reply (NaN, a factor out of range, a slot with no craft, more than 96 commands,
   `tick` returning non-zero, a state length that differs from the manifest). The commands
   of that call are discarded and the blob keeps its prior value.
-- **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (3 now). A module built for
+- **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (3 now; ABI 1 is edited in place before release, so rebuild every module against the engine you run: the event record is 16 bytes now). A module built for
   another revision is refused by name: rebuild against the engine you run.
 - A pickup of the mod's own (`Pickup::Ours`): one module owns the kind per race, and a race
   without weapons refuses it. It draws the look of `[pickup]`; there is no implicit Turbo
@@ -157,7 +158,7 @@ a stand-alone clone needs a git dependency pinned to the ABI revision instead
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect`, `fire_mod_effect`, `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect`, `fire_mod_effect`, `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
@@ -168,6 +169,31 @@ and icons sit at one of nine `Anchor`s via `HudPlace`, at most 48 bytes a string
 the driver can drive it; the host still throws the coin. Re-send it every tick it should hold.
 It moves a driver only (an AI craft, or a person's Autopilot); the AI drives the route with the
 player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane with it.
+
+## Events between mods: `emit` and `Event::Mod`
+
+**`reply.emit(&craft, channel!("<mod id>/<name>"), value)`** (command 23) sends `value` on a
+channel about a craft. Every module (the sender too) gets `Event::Mod { slot, from, channel,
+value }` on the **next** tick, whatever order the modules run in: the queue is sorted by
+channel, slot, sender and value, so no module's id changes what another sees. Rules the host
+enforces, each faulting the module by name:
+
+- the channel must be in the sending mod's `[channels] publishes` (no table, no `emit`);
+- at most 4 `emit`s per module per tick (`MAX_EMITS_PER_TICK`; the SDK refuses a fifth with
+  `Refused::Emits`), and at most 16 `mod` events are delivered in a tick (chosen, not measured).
+
+`channel!` is the same compile-time FNV-1a 32 hash as `prop!`; `from` is `channel!("<sender's
+mod id>")`, or `TRACK_SENDER` (0) for a track trigger. The queue is race state (hashed). Test
+two modules natively with `Race::hear(sender, &command)`, which turns one `Race::tick`'s
+`Emit` into the next one's `Mod` event.
+
+**A track needs no module to send.** A trigger Empty with a custom property `oag_emit =
+"<mod id>/<name>"` (Blender panel: **Emit**; the scene's **Channels published** lists it) sends
+that channel when a craft enters it: modules hear it with `from == TRACK_SENDER`, and the track
+file's `[channels] publishes` must name it. **A glTF art animation with `oag_on = "<channel>"`**
+(Blender panel: **Start on**; objects sharing an `oag_anim` name must agree) holds its first
+key until the channel fires, then plays from there. That is visual only: collision never moves.
+`checkpoint-circuit/` publishes `oag.checkpoint-circuit/checkpoint` (the gate's number).
 
 ## Build, test, run
 
@@ -212,7 +238,7 @@ untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
   material's image with **Make Host Texture** (`oag_host_entry`, `oag_host_name`) or set the
   **Sky** form. Nothing from the disc is exported; the game reads it from the player's disc at race time.
   A host-borrowing track is for that title only (`titles` in the manifest too).
-- Headless proof: `scripts/blender/roundtrip.py` (`loop`, `props`, `effect`) in the engine.
+- Headless proof: `scripts/blender/roundtrip.py` (`loop`, `props`, `channels`, `effect`) in the engine.
   `hillside/hillside.py` rebuilds Hillside in Blender, `checkpoint-circuit/checkpoint_circuit.py`
   Checkpoint Circuit (a forked spline, triggers made from meshes).
 
