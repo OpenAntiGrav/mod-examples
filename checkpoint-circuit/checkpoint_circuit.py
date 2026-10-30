@@ -455,10 +455,12 @@ for name, (x, y), _, props in TRIGGERS:
     box(f"{name} beam", centre, g_lat, g_fwd, UP, (hi - lo + 6.0, 5.0, 6.0), beam)
     # A lamp band along the beam, a little proud of both faces. Its mesh sits on its own origin
     # so the pulse scales it in place: the track file's `oag_on` starts the band's growth when a
-    # craft clears any gate (the mod's `oag.checkpoint-circuit/checkpoint`), then it settles.
+    # craft clears this gate: the mod sends `oag.checkpoint-circuit/checkpoint` with the gate's number
+    # as the value, and `oag_on_value` keeps the band to its own gate, then it settles.
     band = box(f"{name} lamp", Vector((0.0, 0.0, 0.0)), Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)), (hi - lo, 5.6, LAMP_REST), lamp)
     band.matrix_world = Matrix(((g_lat.x, g_fwd.x, UP.x, centre.x), (g_lat.y, g_fwd.y, UP.y, centre.y), (g_lat.z, g_fwd.z, UP.z, centre.z), (0, 0, 0, 1)))
     band.oag_on = "oag.checkpoint-circuit/checkpoint"
+    band.oag_on_value = str(props["checkpoint"])
     band.oag_loop = "clamp"
     for frame, grow in ((1, 1.0), (7, LAMP_PULSE), (37, 1.0)):
         band.scale = (1.0, 1.0, grow)
