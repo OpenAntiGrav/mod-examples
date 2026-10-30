@@ -170,12 +170,12 @@ fn hud(reply: &mut Reply<'_>, craft: &Craft<'_>, left: u16, in_pit: bool) {
         x: 0,
         y,
     };
-    let _ = reply.hud_string(craft, top(8, 4), WHITE, "CPC_CHECKPOINT");
+    let _ = reply.hud_string(craft, top(6, 3), WHITE, "CPC_CHECKPOINT");
     let tenths = u32::from(left) * 10 / 60;
     let mut line = Line::new();
     let _ = write!(line, "{}.{}", tenths / 10, tenths % 10);
     let colour = if left <= WARN_TICKS { RED } else { WHITE };
-    let _ = reply.hud_text(craft, top(26, 8), colour, line.as_str());
+    let _ = reply.hud_text(craft, top(20, 5), colour, line.as_str());
     if left == 0 {
         let _ = reply.hud_tint(craft, HudElement::Energy, RED);
         let _ = reply.hud_shake(craft, HudElement::Energy, SHAKE);
@@ -183,7 +183,7 @@ fn hud(reply: &mut Reply<'_>, craft: &Craft<'_>, left: u16, in_pit: bool) {
     if in_pit {
         let place = HudPlace {
             anchor: Anchor::Center,
-            quarters: 6,
+            quarters: 5,
             x: 0,
             y: -70,
         };
