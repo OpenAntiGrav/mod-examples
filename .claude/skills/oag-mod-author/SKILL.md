@@ -182,6 +182,31 @@ player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane wit
 6. Debugging: the `Dev` overlay shows per module fuel and the fault tick; the boot log and load
    report name a module left out, a missing asset or an effect that drew nothing.
 
+## A mod in JavaScript (experimental; `wall-penalty-js/`)
+
+Rust on `oag-ext` is the way to write a mod. `wall-penalty-js/` shows the only other route that
+meets the rules: JavaScript built with Javy (QuickJS in core wasm) behind a guest-side shim.
+Choose it only to see what it costs: **a JavaScript tick spends 155,000 to 230,000 of the 200,000
+fuel** (Rust Wall Penalty: about 500), so a mod doing more than a few hundred bytecode operations a
+tick faults out of fuel; the module is 1.37 MB against 627 bytes; the host spends about 1 s
+compiling it at race load.
+
+- Build: `wall-penalty-js/build.sh` with `JAVY=<javy 9.1.0>` whose plugin was built **without**
+  `+simd128` (stock Javy's output uses SIMD, which the host refuses), and binaryen's `wasm-dis`
+  and `wasm-as` on PATH. The build is byte-reproducible; commit `ext/*.wasm` (LFS).
+- `src/main.js` exports `jsTick()`. It cannot see the I/O buffer: `Javy.IO.readSync(0, buf)`
+  reads the head of it, and **one** `Javy.IO.writeSync(1, buf)` writes the state blob (its first
+  `state_bytes`) then the reply (the command count and records). `tools/shim.py` turns Javy's nine
+  WASI imports into functions that do this, and exports `oag_abi`, `oag_io`, `oag_state_len` and
+  `tick`. No import remains.
+- No clock, no randomness (`Date.now` is 0, `Math.random` is the snapshot's), nothing between ticks.
+- TypeScript typings of the ABI: `types/oag-abi.d.ts`, generated from `crates/ext-abi` by the
+  engine's `scripts/gen-ext-typings.py` (run it after an ABI change; `just check-extensions`
+  fails on a stale file or a script whose own `const NAME = n;` differs from the ABI).
+- Prove it the way the Rust one is proved: `crates/modhost/tests/javascript_module.rs` (random
+  observations, same state and commands as `wall-penalty/`) and the `wall_penalty_ground_truth`
+  JavaScript tests (`--features extensions --run-ignored only`).
+
 ## Particle effects
 
 `fx/<name>.toml` with `toml-schema = { location = ".../v1/effect.tosd", version = "1.0.0" }`,

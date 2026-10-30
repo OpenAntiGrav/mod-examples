@@ -1,0 +1,5 @@
+package oag:wall-penalty;
+
+world ext {
+  export js-tick: func();
+}
