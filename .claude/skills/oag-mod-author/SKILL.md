@@ -113,13 +113,12 @@ oag_ext::export!(WallPenalty);
 `oag-ext` as a dependency and, with `features = ["test"]`, a dev-dependency; release
 profile `opt-level = "s"`, `lto = true`, `panic = "abort"`, `codegen-units = 1`,
 `strip = true`. `.cargo/config.toml`: `[target.wasm32-unknown-unknown] rustflags =
-["-C", "link-arg=-zstack-size=16384"]`. `oag-ext` is a git dependency on the engine,
-`{ git = "https://github.com/topaxi/OpenAntiGrav", rev = "<engine commit>" }` (not on
-crates.io), so a stand-alone clone builds. Inside the engine checkout
+["-C", "link-arg=-zstack-size=16384"]`. `oag-ext` is a git dependency on the engine's `main`,
+`{ git = "https://github.com/topaxi/OpenAntiGrav", branch = "main" }` (not on
+crates.io), so a stand-alone clone builds against the newest SDK; `cargo update -p
+oag-ext` picks up a newer one. Inside the engine checkout
 `assets/mods/.cargo/config.toml` patches it to the engine's `crates/ext`, so a guest
-under `assets/mods/` always builds against the SDK in that tree. After an SDK change
-in the engine: commit it, set every example's `rev` to that commit, commit the
-examples, then the submodule pointer; `just check-ext-pin` fails until then.
+under `assets/mods/` always builds against the SDK in that tree.
 
 ## Hard rules (the host enforces them)
 

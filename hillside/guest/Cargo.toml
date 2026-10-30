@@ -13,14 +13,14 @@ publish = false
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
-# The guest SDK, pinned to the engine commit the committed module was built against.
-# Inside the engine checkout, `assets/mods/.cargo/config.toml` patches it to the
-# engine's own `crates/ext`; bump `rev` with every SDK change (`just check-ext-pin`).
+# The guest SDK from the engine's `main` (ABI 1 is edited in place before release, so a
+# module is rebuilt against the engine it runs on; a release pins a `rev`). Inside the
+# engine checkout, `assets/mods/.cargo/config.toml` patches it to the engine's own SDK.
 [dependencies]
-oag-ext = { git = "https://github.com/topaxi/OpenAntiGrav", rev = "fa984901efbf0c2efb0193fb2c038f5fcc3507b2" }
+oag-ext = { git = "https://github.com/topaxi/OpenAntiGrav", branch = "main" }
 
 [dev-dependencies]
-oag-ext = { git = "https://github.com/topaxi/OpenAntiGrav", rev = "fa984901efbf0c2efb0193fb2c038f5fcc3507b2", features = ["test"] }
+oag-ext = { git = "https://github.com/topaxi/OpenAntiGrav", branch = "main", features = ["test"] }
 
 [profile.release]
 opt-level = "s"
