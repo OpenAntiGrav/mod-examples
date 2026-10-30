@@ -11,6 +11,8 @@ game run from a checkout (`just play`) offers them, and its tests read them.
 | [`wall-penalty/`](wall-penalty/) (`oag.wall-penalty`) | Wall Penalty, a simulation mod in WebAssembly: a craft that touches a wall keeps a quarter of its thrust for 1.5 s. Rust source in `wall-penalty/guest/` (`guest/build.sh`), the built module committed as `wall-penalty/ext/wall_penalty.wasm`. Needs a game built with the `extensions` feature. |
 | [`energy-turbo/`](energy-turbo/) (`oag.energy-turbo`) | Energy Turbo, a simulation mod in WebAssembly: a pickup of its own, handed out in place of every second Turbo and drawn as the Turbo on a red backdrop. Hold fire to boost on your shield, absorb it for half of what you spent, carry it over a speed pad to refill instead of boosting. Rust source in `energy-turbo/guest/`, the built module committed as `energy-turbo/ext/energy_turbo.wasm`. Needs the `extensions` feature. |
 
+Writing a mod, with an agent or by hand: [`.claude/skills/oag-mod-author/SKILL.md`](.claude/skills/oag-mod-author/SKILL.md) is the guide (manifest, guest SDK, ABI rules, build loop, Blender).
+
 ![Hillside on Wipeout Pulse: the start gantry, the grid and the mountain range](hillside/screenshot.png)
 
 *Hillside raced on Wipeout Pulse (PSP). The road, walls and sky are Pulse's own textures,
