@@ -13,13 +13,14 @@ publish = false
 crate-type = ["cdylib"]
 path = "src/lib.rs"
 
-# A stand-alone clone needs a git dependency on the engine, pinned to the ABI revision
-# the committed module was built for.
+# The guest SDK, pinned to the engine commit the committed module was built against.
+# Inside the engine checkout, `assets/mods/.cargo/config.toml` patches it to the
+# engine's own `crates/ext`; bump `rev` with every SDK change (`just check-ext-pin`).
 [dependencies]
-oag-ext = { path = "../../../../../crates/ext" }
+oag-ext = { git = "https://github.com/topaxi/OpenAntiGrav", rev = "fa984901efbf0c2efb0193fb2c038f5fcc3507b2" }
 
 [dev-dependencies]
-oag-ext = { path = "../../../../../crates/ext", features = ["test"] }
+oag-ext = { git = "https://github.com/topaxi/OpenAntiGrav", rev = "fa984901efbf0c2efb0193fb2c038f5fcc3507b2", features = ["test"] }
 
 [profile.release]
 opt-level = "s"
