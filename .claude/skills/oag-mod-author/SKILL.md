@@ -37,7 +37,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 | `[extension.track]` | `module = ...` and `track = "tracks/x.track.toml"`: runs only in a race of that track file, never a disc circuit |
 | `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its index in **name order** |
 | `[icons]` | `name = "path.png"`: PNGs for `hud_mod_icon` (missing or unreadable draws nothing, load report says so) |
-| `[pickup]` | **Landing soon** (lane `ext-pickup-look`, not on `wasm-extensions` when this was written): the look of the mod's own pickup. Check `docs/tools/mods.md` before relying on it |
+| `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it |
 
 Other files: `strings/<language>.toml` (`[strings]` rows `ID = { text = "...", human = false }`;
 `human = true` only when a person wrote or approved it; ship `english.toml`, it is the
@@ -63,7 +63,8 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
   `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`. At most 32 per call.
 - `Reply`: one method per command, `Result<(), Refused>`. `Refused` is `Full` (96 commands),
   `Repeated` (a second per-craft thrust, shield, pad or route command), `Range`, `HudItems`
-  (more than 32 text/icon items per craft per tick, or the string pool full), `Pickup`.
+  (more than 32 text/icon items per craft per tick, or the string pool full), `Pickup`,
+  `PickupTint` (`hud_tint` of the pickup).
   Handle or `let _ =` it on purpose; the host would fault on what the SDK refuses.
 - `Slot` and `Craft`: a command naming a slot takes a `&Craft`, so an empty slot cannot be named.
 - `blob!`: little-endian, field order, no padding; integers, `f32`, `bool`, fixed arrays,
@@ -141,13 +142,22 @@ a stand-alone clone needs a git dependency pinned to the ABI revision instead
 - **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (3 now). A module built for
   another revision is refused by name: rebuild against the engine you run.
 - A pickup of the mod's own (`Pickup::Ours`): one module owns the kind per race, and a race
-  without weapons refuses it.
+  without weapons refuses it. It draws the look of `[pickup]`; there is no implicit Turbo
+  icon. `reply.pickup_look(&craft, Icon, Colour)` (command 22) overrides it for one tick:
+  `Icon::{Title(Weapon), Mod(ModIcon::new("name"))}`, `Colour::{Title(Weapon), Rgba(Rgba)}`,
+  with maps `icon::title::TURBO`, `colour::title::SHIELD` and so on for every weapon. A
+  title colour is that title's own backdrop row (Pulse, HD, Omega); the title's fade-in,
+  overshoot, size pulse and fade-out play on any look; the last look is kept for the
+  fade-out. **Pure has no backdrop widget: both colour kinds draw nothing there**; 2048
+  keeps its backdrop as authored. `hud_tint` of `HudElement::Pickup` is refused
+  (`Refused::PickupTint`; a raw record faults the module): use `pickup_look`. `hud_shake`
+  on `Pickup` still works.
 
 ## What is hashed and what is an output
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect`, `fire_mod_effect`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect`, `fire_mod_effect`, `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
@@ -158,8 +168,6 @@ and icons sit at one of nine `Anchor`s via `HudPlace`, at most 48 bytes a string
 the driver can drive it; the host still throws the coin. Re-send it every tick it should hold.
 It moves a driver only (an AI craft, or a person's Autopilot); the AI drives the route with the
 player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane with it.
-**Landing soon:** lane `ext-pickup-look` removes `hud-tint{Pickup}` and adds `pickup-look`
-(command 22). Re-read the engine docs before using it.
 
 ## Build, test, run
 
