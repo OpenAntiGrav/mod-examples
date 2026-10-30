@@ -138,7 +138,7 @@ a stand-alone clone needs a git dependency pinned to the ABI revision instead
 - **A fault turns the module off for the rest of the race** (the tick it faulted on is
   hashed). Causes: out of fuel, any trap (`unreachable`, out of bounds, stack overflow), a
   refused reply (NaN, a factor out of range, a slot with no craft, more than 96 commands,
-  more than 8 `fire_effect` / `fire_mod_effect` in one tick, `tick` returning non-zero), or a
+  more than 16 `fire_effect` / `fire_mod_effect` in one tick, `tick` returning non-zero), or a
   rule the host can check only as it applies the reply (an `emit` past 4 a tick or on a channel
   your mod does not publish; a pickup command from a module that does not own the pickup, or from
   a mod with no `[pickup]`). The commands of that call are discarded, **all of them**, and the
@@ -171,7 +171,7 @@ a stand-alone clone needs a git dependency pinned to the ABI revision instead
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect` / `fire_mod_effect` (together at most 8 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
