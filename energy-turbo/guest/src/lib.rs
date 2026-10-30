@@ -1,7 +1,7 @@
 //! Energy Turbo: a pickup of its own, handed out in place of every second Turbo.
 //!
 //! - **Pick it up**: `pickup_roll` swaps every second Turbo a weapon pad draws for this
-//!   pickup; `pickup_tint` draws it as the Turbo's icon on a red backdrop. The engine
+//!   pickup; `hud_tint` draws it as the Turbo's icon on a red backdrop; while boosting, `hud_bar_extra` and `hud_shake` show the added thrust and the drain. The engine
 //!   never fires or absorbs it.
 //! - **Hold fire**: the craft boosts (`scale_thrust`) and pays from its shield
 //!   (`shield_delta`) while fire is held and the pool lasts. An AI craft holds no
@@ -19,7 +19,7 @@
 #![cfg_attr(not(test), no_std)]
 
 use oag_ext::{
-    Craft, Cue, Effect, Event, Extension, Observation, Pickup, Reply, Rgba, Slot, Weapon,
+    Craft, Cue, Effect, Event, Extension, HudElement, Observation, Pickup, Reply, Rgba, Slot, Weapon,
 };
 
 // The numbers below are chosen, not measured.
@@ -43,6 +43,8 @@ const AI_REST: u16 = 120;
 const ROLL_EVERY: u8 = 2;
 /// Ticks between two spark bursts at the nozzle.
 const SPARK_EVERY: u8 = 20;
+/// The energy bar's shake while the turbo drains, in HUD pixels. Chosen.
+const SHAKE: f32 = 2.0;
 const RED: Rgba = Rgba::new(0xE0, 0x20, 0x20, 0xFF);
 const SLOTS: usize = 8;
 
@@ -130,6 +132,10 @@ fn boost(
     *delta -= cost;
     memory.spent += cost;
     let _ = reply.scale_thrust(craft, BOOST_FACTOR);
+    // The thrust bar shows the vanilla share and, blending into red, the share this
+    // turbo adds; the energy bar shakes while it drains.
+    let _ = reply.hud_bar_extra(craft, HudElement::Thrust, BOOST_FACTOR - 1.0, RED);
+    let _ = reply.hud_shake(craft, HudElement::Energy, SHAKE);
     if memory.spark == 0 {
         let _ = reply.fire_effect(craft, Effect::CollisionSpark);
         memory.spark = SPARK_EVERY;
@@ -187,7 +193,7 @@ impl Extension for EnergyTurbo {
             }
 
             let _ = reply.scale_slot_pads(&craft, 0.0);
-            let _ = reply.pickup_tint(&craft, RED);
+            let _ = reply.hud_tint(&craft, HudElement::Pickup, RED);
             if has(events.pads, &craft) && memory.pad_held {
                 delta += craft.shield_max() * PAD_SHARE;
             }
@@ -249,8 +255,9 @@ mod tests {
                     slot: me,
                     factor: 0.0
                 },
-                Command::PickupTint {
+                Command::HudTint {
                     slot: me,
+                    element: HudElement::Pickup,
                     rgba: RED
                 },
                 Command::ScaleThrust {
@@ -259,6 +266,17 @@ mod tests {
                 },
             ]
         );
+        assert!(first.contains(&Command::HudBarExtra {
+            slot: me,
+            element: HudElement::Thrust,
+            extra: BOOST_FACTOR - 1.0,
+            rgba: RED
+        }));
+        assert!(first.contains(&Command::HudShake {
+            slot: me,
+            element: HudElement::Energy,
+            amplitude: SHAKE
+        }));
         assert!(first.contains(&Command::PlayCue {
             slot: me,
             cue: Cue::Turbo
@@ -271,8 +289,16 @@ mod tests {
             ..carrier(true, false)
         });
         race.event(Event::PickupAbsorbed { slot: me });
+        let paid = race.tick();
+        assert!(
+            !paid.iter().any(|c| matches!(
+                c,
+                Command::HudShake { .. } | Command::HudBarExtra { .. }
+            )),
+            "not boosting: the bars hold still"
+        );
         assert_eq!(
-            race.tick()[1..],
+            paid[1..],
             [
                 Command::ShieldDelta {
                     slot: me,
