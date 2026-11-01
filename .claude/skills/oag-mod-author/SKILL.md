@@ -249,6 +249,19 @@ install as an extension, Blender 4.2+). A scene object is exported only when tag
 `oag_kind` (`spline`, `floor`, `wall`, `start`, `speedup`, `weapon`, `trigger`, ...); an
 untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
 
+- **A loading screen of the track's own:** an optional `[loading]` table in the manifest (every
+  key optional, files inside the track's folder, never `..` or absolute), each falling back on its
+  own to the title's: `layout` (a screen-layout TOML with `screen = "loading"`, see engine
+  `docs/formats/screen-layout.md`), `caption` (the circuit's name on the caption line),
+  `feature_image` (a PNG, drawn at the layout's `feature-image` box: 896x480 on HD),
+  `feature_title`, `feature_heading`, `feature_text`. Naming any feature key makes the track the
+  feature (a key left out draws blank, the title's random feature is not run). A layout names
+  what to draw (`draw = "image" | "text" | "label" | "corners" | "dots" | "clip"`) in a `grid`
+  of its own pixels, with `asset` and `source` role names the title resolves; an element it cannot
+  resolve is skipped and named in the load report. Try it:
+  `oag-game <disc> --loading-screen 0/1 --loading-step race --track-file x.track.toml --ticks 60 --screenshot out.png`.
+  A whole title's screen is replaced the same way as any fallback file, by path:
+  `overrides/wipeout-hd/Data/XML/LoadingScreen_HD.toml`, no `oag-mod.toml` key.
 - **Properties for a module:** a custom property `mod_<name>` (number or bool, never a
   string or array) on a pad Empty, a trigger Empty, a spline object or the scene; the module
   reads it with `prop!("<name>")`. Caps: 256 entities, 64 triggers, 1,024 properties.
