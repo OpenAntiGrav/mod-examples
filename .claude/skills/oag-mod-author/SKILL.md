@@ -42,7 +42,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 
 Other files: `strings/<language>.toml` (`[strings]` rows `ID = { text = "...", human = false }`;
 `human = true` only when a person wrote or approved it; ship `english.toml`, it is the
-fallback), `menu.toml` (menu rows, closed set of existing pages and actions; a `[[page]]` with `[[page.entry]]` rows of the shipped menu's grammar adds a page of your own, tree id `<mod id>/<id>`, named by its short `id` in a `target` of your own rows; it must be reached by one of your rows, or the mod is refused naming the page; settings, queries and `launch_race` are not built yet),
+fallback), `menu.toml` (menu rows, closed set of existing pages and actions; a `[[page]]` with `[[page.entry]]` rows of the shipped menu's grammar adds a page of your own, tree id `<mod id>/<id>`, named by its short `id` in a `target` of your own rows; it must be reached by one of your rows, or the mod is refused naming the page; an `action = "launch_race"` row on such a page with `launch = { track_title = "mod.<id>.<key>", track = ..., craft_title, team, variant, mode, class, difficulty }` races the sources those settings name (a key is an engine setting like `race.mode` or `race.class`, or a `mod.<id>.<key>` of your own; a key left out is the booted title's; a `launch` on any other action, or an unknown input, refuses the mod; `[[entry]]` rows cannot carry `launch` yet); a mod's own settings pickers and queries are not built yet),
 `campaigns/*.toml`, `pilots/*.toml`, `tracks/*.track.toml` + `.glb`. A mod with a
 module needs an engine built with the `extensions` feature. No module runs in an
 original campaign or a network race; a race running one is MODDED and records no replay.
