@@ -42,7 +42,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 
 Other files: `strings/<language>.toml` (`[strings]` rows `ID = { text = "...", human = false }`;
 `human = true` only when a person wrote or approved it; ship `english.toml`, it is the
-fallback), `menu.toml` (menu rows, closed set of existing pages and actions),
+fallback), `menu.toml` (menu rows, closed set of existing pages and actions; a `[[page]]` with `[[page.entry]]` rows of the shipped menu's grammar adds a page of your own, tree id `<mod id>/<id>`, named by its short `id` in a `target` of your own rows; it must be reached by one of your rows, or the mod is refused naming the page; settings, queries and `launch_race` are not built yet),
 `campaigns/*.toml`, `pilots/*.toml`, `tracks/*.track.toml` + `.glb`. A mod with a
 module needs an engine built with the `extensions` feature. No module runs in an
 original campaign or a network race; a race running one is MODDED and records no replay.
