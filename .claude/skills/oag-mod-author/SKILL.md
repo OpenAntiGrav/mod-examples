@@ -63,7 +63,11 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
 - `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`, `in_transit()`,
   `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `pickup()`,
   `progress() -> Option<f32>` (units along the lap, negative on the grid, `None` before its first
-  fix; last tick's), `place()` (1-based, as the HUD shows).
+  fix; last tick's), `place()` (1-based, as the HUD shows), `aim_at(slot) -> Aim` (where that
+  craft sits in this craft's own frame: `ahead()`, `across()`, `above()` in world units quantised
+  to 2, and `in_cone(range, spread)`, ahead and within `spread` (a tangent: 0.3 is about 17
+  degrees) of the forward axis; zero for itself, an empty slot or a slot past 7; `Race::with_aim`
+  sets it in the native harness).
 - `Event`: `WallContact`, `PickupFire`, `PickupAbsorbed`, `SpeedPad{pad}`, `WeaponPad{pad}`,
   `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`, `Mod{slot, from, channel, value}`,
   `TransitEnd{slot}` (on the exit tick's own call), `Clearance{slot, fits, ahead}` (the answer to last
@@ -164,8 +168,12 @@ under `assets/mods/` always builds against the SDK in that tree.
   value) are dropped, counted and logged by the host, never a fault.
 - **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (3 now; ABI 1 is edited in place before release, so rebuild every module against the engine you run: the event record is 16 bytes now). A module built for
   another revision is refused by name: rebuild against the engine you run.
-- A pickup of the mod's own (`Pickup::Ours`): one module owns the kind per race, and a race
-  without weapons refuses it. It draws the look of `[pickup]`; there is no implicit Turbo
+- A pickup of the mod's own (`Pickup::Ours`): every mod that declares a `[pickup]` has a kind of its
+  own (up to 32 a race, in mod id order; the engine runs at most 4 simulation mods), so two mods
+  hand out their own at once. You only ever give, clear and roll yours; `pickup()` reads your
+  kind as `Pickup::Ours` and another mod's as `Pickup::Other(kind)`; `pickup-fire` and
+  `pickup-absorbed` reach you only for your kind. A mod that gives, rolls or clears with no
+  `[pickup]` is faulted. A race without weapons refuses it. It draws the look of `[pickup]`; there is no implicit Turbo
   icon. `reply.pickup_look(&craft, Icon, Colour)` (command 22) overrides it for one tick:
   `Icon::{Title(Weapon), Mod(ModIcon::new("name"))}`, `Colour::{Title(Weapon), Rgba(Rgba)}`,
   with maps `icon::title::TURBO`, `colour::title::SHIELD` and so on for every weapon. A
