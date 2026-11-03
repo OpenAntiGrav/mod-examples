@@ -39,6 +39,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 | `[extension.track]` | `module = ...` and `track = "tracks/x.track.toml"`: runs only in a race of that track file, never a disc circuit |
 | `[channels]` | `publishes = ["<mod id>/<name>"]`, `listens = [...]`: the event channels the mod's modules send on and hear (see below). Names are `<mod id>/<name>` (lowercase letters, digits, `-`, `_`; the id may also have `.`); a published one starts with this mod's own id. Malformed, repeated or foreign-namespace names refuse the mod at load, by name. The MODS page shows SENDS and HEARS, and **NO ONE SENDS** when a listened channel is sent by no mod (or track file) that is on |
 | `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its index in **name order** |
+| `[sounds]` | `name = "sounds/name.wav"`: your own sounds, 16-bit PCM WAV (mono or stereo, any rate, at most 4 MiB), never a game's audio. A guest plays one with `play_mod_sound` by its index in **name order**; a file that fails to decode plays nothing and the load report names it |
 | `[icons]` | `name = "path.png"`: PNGs for `hud_mod_icon` (missing or unreadable draws nothing, load report says so) |
 | `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it. Optional `[pickup.titles.<title>]` tables (title = a lowercased hyphenated title name such as `wipeout-hd`) give `icon` and/or `colour` for one title over the base look: ship one PNG per title. The icon is scaled (aspect kept) to the box the title's own Turbo glyph fills and centred on it, measured from its drawn pixels, so a transparent margin never shrinks it; Pure draws the backdrop but no mod PNG (its icons are models). Optional `[[pickup.odds]]` rows inside it, `{ title?, class?, ai, human, front, back }` (weights finite, at least 0), make the **weapon pads** hand the pickup out beside the title's weapons at the most specific matching row (title and class, title, class, neither; `class` is a pickup table's class, any case, so 2048's per-class tables each take a row). That module then owns the mod pickup from the race start; a second mod's rows are left out; a fault ends the odds |
 
@@ -188,7 +189,7 @@ under `assets/mods/` always builds against the SDK in that tree.
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`, `transit`, `scale_speed`, `probe_clearance` (its pending answer); the state blob; the fault flag and tick | `play_cue`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`, `transit`, `scale_speed`, `probe_clearance` (its pending answer); the state blob; the fault flag and tick | `play_cue`, `play_mod_sound`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
@@ -214,6 +215,19 @@ fault (the SDK takes a `&Craft`).
   in the world for the effect's lifetime (a PNG `texture`, one emission, `speed = [0, 0]`, `lifetime = [150, 0]`): a
   camera-facing sprite, e.g. a half disc. The sprite is centred on that point (road level, lifted a little), so put a half disc's flat edge on the PNG's middle row with the disc in the upper half, or the road hides it; on a pale track use `alpha-over` in a deep colour (additive washes out). Counts toward the 16 effects a tick. Not a mesh; nothing draws if the distance
   does not resolve. Test with `oag_ext::test::Race`; the engine side is `tests::extension_view`.
+
+## Sounds: `play_mod_sound`
+
+Heard, never hashed. **`reply.play_mod_sound(&craft, index, SoundMode::Once | Loop | Stop)`** (command 33): your
+`[sounds]` entry `index` (name order) from that craft, placed like a title cue on the craft (the player's own craft
+dry, the others positioned, HRTF or rear cue as the player chose; through the master trim and limiter, so keep
+peaks well under full scale). `Once` plays each time it is sent. `Loop` starts a loop that follows the craft and is
+left alone if already running, so re-sending it every tick is harmless; `Stop` ends it. The host ends a loop when
+the module faults, the craft's slot empties or the race finishes. Not counted toward the 16 effects. Name sounds
+by what they are (`portal-open`) and keep the names stable: a sound's index is its place in name order, so adding
+one in the middle moves the others (pin each index in a named const and test it against the manifest, as
+`assets/mods/official/slipstream/guest/src/tests.rs` does). `Race` in `oag_ext::test` returns the commands; the
+engine side is `tests::extension_sounds`, the format `docs/formats/mod-sound.md`.
 
 ## Moving a craft along the circuit: `transit`, `scale_speed`, `probe_clearance`
 
