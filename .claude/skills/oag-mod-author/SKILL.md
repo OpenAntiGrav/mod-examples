@@ -34,7 +34,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 
 | Table | Purpose |
 | --- | --- |
-| `[extension]` | `simulation = true` (required with a module), `api = 1`, `memory_pages` (1 to 256, default 16; 2 holds the SDK with a 16 KiB stack), `state_bytes` (at most 1,024; must equal the guest's `oag_state_len`) |
+| `[extension]` | `simulation = true` (required with a module), `api = 1`, `memory_pages` (1 to 256, default 16; 2 holds the SDK with a 16 KiB stack), `state_bytes` (at most 1,024; must equal the guest's `oag_state_len`), `drives_ai_pickup` (bool, default `false`: the engine raises `pickup-fire` for an AI craft holding your pickup wherever it would fire a Turbo; `true` raises nothing for the AI and the module decides from the observation, then `clear_pickup`s) |
 | `[extension.rules]` | `module = "ext/x.wasm"`: runs in every race the mod is on for, every craft, AI too |
 | `[extension.track]` | `module = ...` and `track = "tracks/x.track.toml"`: runs only in a race of that track file, never a disc circuit |
 | `[channels]` | `publishes = ["<mod id>/<name>"]`, `listens = [...]`: the event channels the mod's modules send on and hear (see below). Names are `<mod id>/<name>` (lowercase letters, digits, `-`, `_`; the id may also have `.`); a published one starts with this mod's own id. Malformed, repeated or foreign-namespace names refuse the mod at load, by name. The MODS page shows SENDS and HEARS, and **NO ONE SENDS** when a listened channel is sent by no mod (or track file) that is on |
@@ -54,14 +54,16 @@ original campaign or a network race; a race running one is MODDED and records no
 Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the state with
 `blob!`, name the type in `export!`.
 
-- `Observation`: `tick()`, `craft(slot) -> Option<Craft>`, `crafts()`, `events()`, `track()`.
+- `Observation`: `tick()`, `course_length()` (one lap, units, 0 without a course), `craft(slot) -> Option<Craft>`, `crafts()`, `events()`, `track()`.
 - `Track`: `whole()`, `speed_pad(i)`, `weapon_pad(i)`, `trigger(i)`, `path(i)`, `route(i)` and
   their counts (`speed_pads()`, `weapon_pads()`, `triggers()`, `paths()`, `routes()`); each
   entity has `prop(key)`, `to_world()`, `bounds()`. A route (a way from a fork back to the lap)
   carries the properties of the spline paths it drives, so `route(r).prop(prop!("pit"))` finds
   the route through a path tagged `mod_pit`.
 - `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`, `in_transit()`,
-  `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `pickup()`.
+  `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `pickup()`,
+  `progress() -> Option<f32>` (units along the lap, negative on the grid, `None` before its first
+  fix; last tick's), `place()` (1-based, as the HUD shows).
 - `Event`: `WallContact`, `PickupFire`, `PickupAbsorbed`, `SpeedPad{pad}`, `WeaponPad{pad}`,
   `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`, `Mod{slot, from, channel, value}`,
   `TransitEnd{slot}` (on the exit tick's own call), `Clearance{slot, fits, ahead}` (the answer to last
@@ -76,7 +78,7 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
   nested `blob!` structs.
 - `prop!("name")`: compile-time key (FNV-1a 32) for a track property; `entity.prop(key) -> Option<f32>`.
 - `Line`: fixed-size text buffer with `time(ticks)` and `number(n)`, no allocator.
-- `oag_ext::test::Race<E>`: native test harness (`with_craft`, `with_track`, `event`, `tick() -> Vec<Command>`, `state()`), feature `test` as a dev-dependency.
+- `oag_ext::test::Race<E>`: native test harness (`with_craft`, `with_course(length, slot, progress, place)`, `with_track`, `event`, `tick() -> Vec<Command>`, `state()`), feature `test` as a dev-dependency.
 
 Minimal complete guest (Wall Penalty, trimmed):
 
