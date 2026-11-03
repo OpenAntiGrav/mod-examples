@@ -191,6 +191,21 @@ the driver can drive it; the host still throws the coin. Re-send it every tick i
 It moves a driver only (an AI craft, or a person's Autopilot); the AI drives the route with the
 player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane with it.
 
+## View outputs: `screen_fill`, `fov_offset`, `fire_mod_effect_ahead`
+
+Outputs only (drawn, never hashed); re-send each tick they should hold. A slot with no craft is a
+fault (the SDK takes a `&Craft`).
+
+- **`reply.screen_fill(&craft, Rgba)`** (command 30): washes that craft's view; the colour times its alpha is added over
+  the picture, summed with the title's own flash if one runs. A split-screen seat wears only its own slot's.
+- **`reply.fov_offset(&craft, degrees)`** (command 31): vertical field of view plus `degrees`, within
+  `MAX_FOV_OFFSET_DEG` (30) either way, before the player's FOV setting's aspect fit. `Refused::Range` out of it.
+- **`reply.fire_mod_effect_ahead(&craft, index, Distance)`** (command 32): your `[effects]` entry `index` (name order) played
+  at the middle of the road `distance` ahead (`Distance::Units(60.0)`, `Seconds`, `Lap`, `Progress`, `Trigger`), standing
+  in the world for the effect's lifetime (a PNG `texture`, one emission, `speed = [0, 0]`, `lifetime = [150, 0]`): a
+  camera-facing sprite, e.g. a half disc. Counts toward the 16 effects a tick. Not a mesh; nothing draws if the distance
+  does not resolve. Test with `oag_ext::test::Race`; the engine side is `tests::extension_view`.
+
 ## Moving a craft along the circuit: `transit`, `scale_speed`, `probe_clearance`
 
 - **`reply.transit(&craft, ticks, distance, exit_factor)`** (command 27): the craft leaves the
