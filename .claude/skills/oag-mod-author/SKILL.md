@@ -26,7 +26,9 @@ Starts with `toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/
 `[mod]`: `id` (lowercase letters, digits, `.`, `-`, `_`), `name`, `version` (semver),
 `authors`, `license` (SPDX) or `license-file`, `description`, optional `repository`,
 `homepage`, `keywords`, `titles` (slugs: `wipeout-pulse`, `wipeout-pure`, `wipeout-hd`,
-`wipeout-omega-collection`, `wipeout-2048`; empty means any), `oag` (semver requirement).
+`wipeout-omega-collection`, `wipeout-2048`; empty means any), `oag` (semver requirement),
+`default-enabled` (bool, default `true`; `false` ships the mod off until the player turns it on
+on the MODS page, stored as `[mods] enabled = [id]` in the settings file).
 No licence still loads but is flagged. Check one with `just mods-check <path>`
 (engine checkout); `just mods-list` shows what the search finds.
 
