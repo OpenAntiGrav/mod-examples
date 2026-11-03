@@ -38,7 +38,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 | `[channels]` | `publishes = ["<mod id>/<name>"]`, `listens = [...]`: the event channels the mod's modules send on and hear (see below). Names are `<mod id>/<name>` (lowercase letters, digits, `-`, `_`; the id may also have `.`); a published one starts with this mod's own id. Malformed, repeated or foreign-namespace names refuse the mod at load, by name. The MODS page shows SENDS and HEARS, and **NO ONE SENDS** when a listened channel is sent by no mod (or track file) that is on |
 | `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its index in **name order** |
 | `[icons]` | `name = "path.png"`: PNGs for `hud_mod_icon` (missing or unreadable draws nothing, load report says so) |
-| `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it |
+| `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it. Optional `[[pickup.odds]]` rows inside it, `{ title?, class?, ai, human, front, back }` (weights finite, at least 0), make the **weapon pads** hand the pickup out beside the title's weapons at the most specific matching row (title and class, title, class, neither; `class` is a pickup table's class, any case, so 2048's per-class tables each take a row). That module then owns the mod pickup from the race start; a second mod's rows are left out; a fault ends the odds |
 
 Other files: `strings/<language>.toml` (`[strings]` rows `ID = { text = "...", human = false }`;
 `human = true` only when a person wrote or approved it; ship `english.toml`, it is the
@@ -58,12 +58,14 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
   entity has `prop(key)`, `to_world()`, `bounds()`. A route (a way from a fork back to the lap)
   carries the properties of the spline paths it drives, so `route(r).prop(prop!("pit"))` finds
   the route through a path tagged `mod_pit`.
-- `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`,
+- `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`, `in_transit()`,
   `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `pickup()`.
 - `Event`: `WallContact`, `PickupFire`, `PickupAbsorbed`, `SpeedPad{pad}`, `WeaponPad{pad}`,
-  `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`, `Mod{slot, from, channel, value}`. At most 32 per call; the `Mod` events come first.
+  `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`, `Mod{slot, from, channel, value}`,
+  `TransitEnd{slot}` (on the exit tick's own call), `Clearance{slot, fits, ahead}` (the answer to last
+  call's `probe_clearance`). At most 32 per call; the `Mod` events come first.
 - `Reply`: one method per command, `Result<(), Refused>`. `Refused` is `Full` (96 commands),
-  `Repeated` (a second per-craft thrust, shield, pad or route command), `Range`, `HudItems`
+  `Repeated` (a second per-craft thrust, shield, pad, route, transit, scale-speed or probe command), `Range`, `HudItems`
   (more than 32 text/icon items per craft per tick, or the string pool full), `Pickup`,
   `PickupTint` (`hud_tint` of the pickup), `Emits` (more than 4 `emit`s this tick).
   Handle or `let _ =` it on purpose; the host would fault on what the SDK refuses.
@@ -173,7 +175,7 @@ under `assets/mods/` always builds against the SDK in that tree.
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`, `transit`, `scale_speed`, `probe_clearance` (its pending answer); the state blob; the fault flag and tick | `play_cue`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
@@ -184,6 +186,30 @@ and icons sit at one of nine `Anchor`s via `HudPlace`, at most 48 bytes a string
 the driver can drive it; the host still throws the coin. Re-send it every tick it should hold.
 It moves a driver only (an AI craft, or a person's Autopilot); the AI drives the route with the
 player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane with it.
+
+## Moving a craft along the circuit: `transit`, `scale_speed`, `probe_clearance`
+
+- **`reply.transit(&craft, ticks, distance, exit_factor)`** (command 27): the craft leaves the
+  world for `ticks` (1 to 600): frozen where it was, not stepped, not drawn, not collided with,
+  not hit or locked, its controls and pickup presses ignored, its reset triggers held. Then it is
+  put at `distance` and stepped from there the same tick, at `exit_factor` (0 to 2) times its
+  entry speed. Laps count through the jump; a finish in it is timed at the exit tick.
+  `TransitEnd{slot}` arrives on that call. `Refused::Range` for a craft not racing or already
+  `in_transit()`; the host faults the module if the distance does not resolve on this track.
+- **`Distance`**: always forward and under a lap. `Units(u)`, `Seconds(s)` at the speed it has
+  when the command lands, `Lap(share)`, `Progress(p)` (a place on the lap, units from the start
+  line), `Trigger(n)` (the course point nearest track trigger `n`'s centre). The exit must be on
+  the course ring (the track's spline): a track portal pair is two trigger volumes and a spline
+  through both, its stretch between never driven. Branch routes and exits off the spline are not
+  supported.
+- **`reply.scale_speed(&craft, factor)`** (command 28): velocity times `factor` (0 to 2), once,
+  at this call; a `transit` the same call takes its exit speed after it.
+- **`reply.probe_clearance(&craft, distance, radius)`** (command 29): does a half disc of
+  `radius` (up to 64) standing across the track at `distance` fit (track at least `2r` wide, no
+  geometry between its centre and rim)? `Clearance{fits, ahead}` answers at the next call. Send it
+  each tick you need a fresh answer (e.g. while the craft holds your pickup) and gate the fire on
+  the last answer.
+- All three are hashed (simulation), one of each per craft per tick.
 
 ## Events between mods: `emit` and `Event::Mod`
 
