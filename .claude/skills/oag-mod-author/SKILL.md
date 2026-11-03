@@ -54,7 +54,7 @@ original campaign or a network race; a race running one is MODDED and records no
 Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the state with
 `blob!`, name the type in `export!`.
 
-- `Observation`: `tick()`, `course_length()` (one lap, units, 0 without a course), `craft(slot) -> Option<Craft>`, `crafts()`, `events()`, `track()`.
+- `Observation`: `tick()`, `course_length()` (one lap, units, 0 without a course), `title()` (a `u32` to compare with `title!("wipeout-hd")`, the slugs of a manifest's `titles`; Pulse PSP and PS2 are one title; 0 if the host says none), `craft(slot) -> Option<Craft>`, `crafts()`, `events()`, `track()`.
 - `Track`: `whole()`, `speed_pad(i)`, `weapon_pad(i)`, `trigger(i)`, `path(i)`, `route(i)` and
   their counts (`speed_pads()`, `weapon_pads()`, `triggers()`, `paths()`, `routes()`); each
   entity has `prop(key)`, `to_world()`, `bounds()`. A route (a way from a fork back to the lap)
@@ -76,6 +76,7 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
 - `Slot` and `Craft`: a command naming a slot takes a `&Craft`, so an empty slot cannot be named.
 - `blob!`: little-endian, field order, no padding; integers, `f32`, `bool`, fixed arrays,
   nested `blob!` structs.
+- `title!("wipeout-hd")`: compile-time key of a title slug, for `Observation::title()` (a per-title portal colour, say). `Race::with_title` sets it in the native harness.
 - `prop!("name")`: compile-time key (FNV-1a 32) for a track property; `entity.prop(key) -> Option<f32>`.
 - `Line`: fixed-size text buffer with `time(ticks)` and `number(n)`, no allocator.
 - `oag_ext::test::Race<E>`: native test harness (`with_craft`, `with_course(length, slot, progress, place)`, `with_track`, `event`, `tick() -> Vec<Command>`, `state()`), feature `test` as a dev-dependency.
