@@ -204,7 +204,7 @@ fault (the SDK takes a `&Craft`).
 - **`reply.fire_mod_effect_ahead(&craft, index, Distance)`** (command 32): your `[effects]` entry `index` (name order) played
   at the middle of the road `distance` ahead (`Distance::Units(60.0)`, `Seconds`, `Lap`, `Progress`, `Trigger`), standing
   in the world for the effect's lifetime (a PNG `texture`, one emission, `speed = [0, 0]`, `lifetime = [150, 0]`): a
-  camera-facing sprite, e.g. a half disc. Counts toward the 16 effects a tick. Not a mesh; nothing draws if the distance
+  camera-facing sprite, e.g. a half disc. The sprite is centred on that point (road level, lifted a little), so put a half disc's flat edge on the PNG's middle row with the disc in the upper half, or the road hides it; on a pale track use `alpha-over` in a deep colour (additive washes out). Counts toward the 16 effects a tick. Not a mesh; nothing draws if the distance
   does not resolve. Test with `oag_ext::test::Race`; the engine side is `tests::extension_view`.
 
 ## Moving a craft along the circuit: `transit`, `scale_speed`, `probe_clearance`
@@ -213,7 +213,7 @@ fault (the SDK takes a `&Craft`).
   world for `ticks` (1 to 600): frozen where it was, not stepped, not drawn, not collided with,
   not hit or locked, its controls and pickup presses ignored, its reset triggers held. Then it is
   put at `distance` and stepped from there the same tick, at `exit_factor` (0 to 2) times its
-  entry speed. Laps count through the jump; a finish in it is timed at the exit tick.
+  entry speed. Laps count through the jump; a finish in it is timed at the exit tick. Not if the lap's half-way gate is still shut (a lap entered by a late jump, not yet driven past its middle): that crossing is no lap and no finish, as for a driven one.
   `TransitEnd{slot}` arrives on that call. `Refused::Range` for a craft not racing or already
   `in_transit()`; the host faults the module if the distance does not resolve on this track.
 - **`Distance`**: always forward and under a lap. `Units(u)`, `Seconds(s)` at the speed it has
