@@ -455,8 +455,16 @@ same change. The engine's `CLAUDE.md` says the same.
 A `choice` row on a mod page whose `setting` is `mod.<id>.<key>` and whose `values` are literal
 (`menu.toml`) is read by the guest as `obs.option(n)`: the index of the player's pick in that row's
 `values`, `n` the row's place among the mod's own choice rows in file order (first 4 rows). Nothing
-saved takes the row's `default`; a value the list lacks is 0. A drawn choice only (a view quality, a
-tint): the guest must not let it steer the rules, or the setting is race-changing. In `oag_ext::test::Race`
+saved takes the row's `default`; a value the list lacks is 0. A row declares `scope = "sim"` (the
+default) or `scope = "view"`. **`sim`**: the pick reaches the simulation tick and is part of the race's
+identity (state hash, replay, LAN and lobby fingerprint as `id@version#row=pick`, and the host's or
+lobby's pick online), so two machines on different picks are refused. **`view`** (a view quality, a
+tint): the simulation call always reads the row's `default`, only a second outputs-only call reads this
+device's pick, and it is no part of the identity. In that second call only the drawn commands
+(`fire_effect`, `fire_mod_effect`, `screen_fill`, `fov_offset`, `draw_beam`, `set_shader_param`,
+`portal_view`, the `hud_*` and `pickup_look` ones) count; everything else, the state you write and a
+trap included, is dropped, so a view pick cannot steer a command that acts on the race. Do not
+read a `view` row to decide anything the rules need. Docs: `hooks.md`, "Picks: sim and view". In `oag_ext::test::Race`
 use `.with_options([..])`. A row needs its `string_id` and English text in `strings/english.toml`.
 `oag.slipstream` (official mods) is the example: QUALITY low/medium/high picks `portal_view`'s update
 (none, `Once`, `Continuous`) and tells its shader through `set_shader_param`.
