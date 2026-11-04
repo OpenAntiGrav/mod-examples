@@ -449,3 +449,15 @@ untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
 Any change to the ABI (`oag-ext-abi`), the SDK (`oag-ext`), `oag-mod.toml`, the effect,
 track or string formats, or how a mod is built, tested or run must update this file in the
 same change. The engine's `CLAUDE.md` says the same.
+
+## A mod's own settings reach the guest: `Observation::option`
+
+A `choice` row on a mod page whose `setting` is `mod.<id>.<key>` and whose `values` are literal
+(`menu.toml`) is read by the guest as `obs.option(n)`: the index of the player's pick in that row's
+`values`, `n` the row's place among the mod's own choice rows in file order (first 4 rows). Nothing
+saved takes the row's `default`; a value the list lacks is 0. A drawn choice only (a view quality, a
+tint): the guest must not let it steer the rules, or the setting is race-changing. In `oag_ext::test::Race`
+use `.with_options([..])`. A row needs its `string_id` and English text in `strings/english.toml`.
+`oag.slipstream` (official mods) is the example: QUALITY low/medium/high picks `portal_view`'s update
+(none, `Once`, `Continuous`) and tells its shader through `set_shader_param`.
+
