@@ -39,6 +39,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 | `[extension.track]` | `module = ...` and `track = "tracks/x.track.toml"`: runs only in a race of that track file, never a disc circuit |
 | `[channels]` | `publishes = ["<mod id>/<name>"]`, `listens = [...]`: the event channels the mod's modules send on and hear (see below). Names are `<mod id>/<name>` (lowercase letters, digits, `-`, `_`; the id may also have `.`); a published one starts with this mod's own id. Malformed, repeated or foreign-namespace names refuse the mod at load, by name. The MODS page shows SENDS and HEARS, and **NO ONE SENDS** when a listened channel is sent by no mod (or track file) that is on |
 | `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its index in **name order** |
+| `[shaders]` | `name = "fx/name.wgsl"` (`.wgsl` or `.wesl`): your own fragment shaders, see "Shaders". A guest names one by its index in **name order**, an effect's `shader` key by its name |
 | `[sounds]` | `name = "sounds/name.wav"`: your own sounds, 16-bit PCM WAV (mono or stereo, any rate, at most 4 MiB), never a game's audio. A guest plays one with `play_mod_sound` by its index in **name order**; a file that fails to decode plays nothing and the load report names it |
 | `[icons]` | `name = "path.png"`: PNGs for `hud_mod_icon` (missing or unreadable draws nothing, load report says so) |
 | `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it. Optional `[pickup.titles.<title>]` tables (title = a lowercased hyphenated title name such as `wipeout-hd`) give `icon` and/or `colour` for one title over the base look: ship one PNG per title. The icon is scaled (aspect kept) to the box the title's own Turbo glyph fills and centred on it, measured from its drawn pixels, so a transparent margin never shrinks it; Pure draws its striped backdrop and then the PNG at its own size (shrunk to fit), centred on the backdrop: ship the glyph alone, about 55x28. Optional `[[pickup.odds]]` rows inside it, `{ title?, class?, ai, human, front, back }` (weights finite, at least 0), make the **weapon pads** hand the pickup out beside the title's weapons at the most specific matching row (title and class, title, class, neither; `class` is a pickup table's class, any case, so 2048's per-class tables each take a row). That module then owns the mod pickup from the race start; a second mod's rows are left out; a fault ends the odds |
@@ -201,7 +202,7 @@ the driver can drive it; the host still throws the coin. Re-send it every tick i
 It moves a driver only (an AI craft, or a person's Autopilot); the AI drives the route with the
 player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane with it.
 
-## View outputs: `screen_fill`, `fov_offset`, `fire_mod_effect_ahead`
+## View outputs: `screen_fill`, `fov_offset`, `fire_mod_effect_ahead`, `draw_beam`
 
 Outputs only (drawn, never hashed); re-send each tick they should hold. A slot with no craft is a
 fault (the SDK takes a `&Craft`).
@@ -213,8 +214,47 @@ fault (the SDK takes a `&Craft`).
 - **`reply.fire_mod_effect_ahead(&craft, index, Distance)`** (command 32): your `[effects]` entry `index` (name order) played
   at the middle of the road `distance` ahead (`Distance::Units(60.0)`, `Seconds`, `Lap`, `Progress`, `Trigger`), standing
   in the world for the effect's lifetime (a PNG `texture`, one emission, `speed = [0, 0]`, `lifetime = [150, 0]`): a
-  camera-facing sprite, e.g. a half disc. The sprite is centred on that point (road level, lifted a little), so put a half disc's flat edge on the PNG's middle row with the disc in the upper half, or the road hides it; on a pale track use `alpha-over` in a deep colour (additive washes out). Counts toward the 16 effects a tick. Not a mesh; nothing draws if the distance
+  camera-facing sprite, e.g. a half disc. The sprite is centred on that point (road level, lifted a little), so put a half disc's flat edge on the PNG's middle row with the disc in the upper half, or the road hides it; on a pale track use `alpha-over` in a deep colour (additive washes out). Counts toward the 16 effects a tick. Not a mesh (a shader may draw it, see "Shaders"); nothing draws if the distance
   does not resolve. Test with `oag_ext::test::Race`; the engine side is `tests::extension_view`.
+
+- **`reply.screen_fill_shaded(&craft, Rgba, shader)`**: the fill through your shader, `Rgba` its `input.colour`, alpha over
+  or added as its header says.
+- **`reply.draw_beam(&craft, to, Rgba, half_width, Option<shader>)`** (command 34): a ribbon facing the camera from the
+  craft to the craft in `to`, this tick; `None` is the flat colour. Nothing draws while either is out of the world. At most
+  16 a tick (`Refused::Beams`), `half_width` in `(0, 32]`, never to itself (`Refused::Range`). `Aim::in_cone` picks a
+  target; add `shield_delta` and it is half a Leach. Example: `tether/`.
+- **`reply.set_shader_param(&craft, shader, index, value)`** (command 35): scalar `index` of a shader in that craft's view,
+  this tick; unset it is the header's default.
+
+## Shaders
+
+A `fx/name.wgsl` of WGSL (a `.wesl` is read as WGSL: no `import`). Leading `//!` lines are a TOML header, the rest
+defines `fn mod_fragment(input: ModInput) -> vec4<f32>`, straight alpha in gamma space; the engine converts it for the
+title's target and writes colour alone.
+
+```wgsl
+//! blend = "add"              # "alpha" (default) or "add"
+//! texture = "fx/noise.png"   # optional, for mod_texture
+//!
+//! [[param]]                  # up to 4: fn param_<name>() -> f32
+//! name = "speed"
+//! default = 2.0
+
+fn mod_fragment(input: ModInput) -> vec4<f32> {
+    // input.uv (0..1 across the surface, y down), input.screen_uv, input.world, input.colour, input.time
+    return input.colour * mod_texture(input.uv + vec2<f32>(input.time * param_speed(), 0.0));
+}
+```
+
+- Also: `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: a texture the engine provides (a view it
+  draws for you), transparent black and unbound until then.
+- Drawn on: a particle (an emitter's `shader = "<name>"`, no `texture` beside it), a fill, a beam.
+- **No loop of any kind** (`for`, `while`, `loop`): one that never ended would hang the GPU, so all are refused. Write
+  the steps out or call a helper several times. Also refused: your own bindings, entry points, an `override` with no
+  default, an array over 64 KiB, a file over 64 KiB.
+- A refused file draws nothing (never a flat colour), the load report quotes naga's error with your file's line
+  numbers, and the race runs. A guest can't tell; check the report.
+- Contract: engine `docs/architecture/wasm-extensions/mod-shaders.md`. Examples: `tether/fx/*.wgsl`.
 
 ## Sounds: `play_mod_sound`
 
@@ -324,7 +364,7 @@ track = "Vostok"
 `fx/<name>.toml` with `toml-schema = { location = ".../v1/effect.tosd", version = "1.0.0" }`,
 `axis = "rear" | "up"` and up to 64 `[[emitter]]` tables (`duration`, `interval`,
 `per-emission`, `lifetime`, `speed`, `spread`, `drag`, `gravity`, `live-cap`, `blend`, `size`,
-`alpha`, `colour`, `texture`). Plays at the craft's nozzle (hull back end). A texture is a
+`alpha`, `colour`, `texture`, `shader`). Plays at the craft's nozzle (hull back end). A texture is a
 PNG of the mod or a disc texture by name (`{ entry = "...", name = "..." }`). A broken file
 draws nothing and is named in the load report. Format: engine `docs/formats/mod-effect.md`.
 

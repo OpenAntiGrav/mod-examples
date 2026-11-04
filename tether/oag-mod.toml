@@ -1,0 +1,37 @@
+# Tether: a beam from a person's craft to the craft it has in its sights, drawn by a shader of the
+# mod's own. The example of `[shaders]`: a beam, an effect and a screen fill, each through a
+# WGSL file in fx/. Drawn only, never hashed; it does nothing to the race. Logic is in
+# guest/src/lib.rs; ext/tether.wasm is `guest/build.sh`'s output, committed.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
+
+[mod]
+id = "oag.tether"
+name = "Tether"
+version = "1.0.0"
+authors = ["The OpenAntiGrav contributors"]
+license = "MIT OR Apache-2.0"
+description = "A beam of light from your craft to the craft in front of it, for as long as it stays in the cone. A look and nothing more: an example of a mod's own shaders."
+repository = "https://github.com/OpenAntiGrav/mod-examples"
+titles = ["wipeout-pulse", "wipeout-pure", "wipeout-hd", "wipeout-omega-collection", "wipeout-2048"]
+default-enabled = false
+
+[extension]
+simulation = true
+api = 1
+memory_pages = 2
+# 8 grid slots of 1 byte (guest `Lock`).
+state_bytes = 8
+
+[extension.rules]
+module = "ext/tether.wasm"
+
+# The mod's own shaders, named by their place in this table's name order from a module
+# (guest `SHADER_*`) and by name from an effect file (fx/lock.toml).
+[shaders]
+beam = "fx/beam.wgsl"
+ring = "fx/ring.wgsl"
+vignette = "fx/vignette.wgsl"
+
+[effects]
+lock = "fx/lock.toml"
