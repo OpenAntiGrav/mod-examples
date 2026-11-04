@@ -246,15 +246,33 @@ fn mod_fragment(input: ModInput) -> vec4<f32> {
 }
 ```
 
-- Also: `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: a texture the engine provides (a view it
-  draws for you), transparent black and unbound until then.
+- Also: `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: the view `portal_view` asks the engine for
+  (below), gamma-authored and opaque; transparent black and unbound for a view without one, so **always draw a fallback**.
 - Drawn on: a particle (an emitter's `shader = "<name>"`, no `texture` beside it), a fill, a beam.
 - **No loop of any kind** (`for`, `while`, `loop`): one that never ended would hang the GPU, so all are refused. Write
   the steps out or call a helper several times. Also refused: your own bindings, entry points, an `override` with no
   default, an array over 64 KiB, a file over 64 KiB.
 - A refused file draws nothing (never a flat colour), the load report quotes naga's error with your file's line
   numbers, and the race runs. A guest can't tell; check the report.
-- Contract: engine `docs/architecture/wasm-extensions/mod-shaders.md`. Examples: `tether/fx/*.wgsl`.
+- Contract: engine `docs/architecture/wasm-extensions/mod-shaders.md`. Examples: `tether/fx/*.wgsl`, `window/fx/window.wgsl`.
+
+## A second camera: `portal_view`
+
+**`reply.portal_view(&craft, (entrance, exit), radius, update, generation)`** (command 36): `craft`'s view wants what its
+camera sees through a portal pair at two lap progresses (track units, from `Craft::progress()` wrapped by
+`Observation::course_length()`, never below zero). Re-send it each tick it should hold. Never hashed.
+
+- `radius`, whole world units from 1: how far your surface reaches from the entrance's centre; a portal out of the view
+  draws nothing and costs nothing.
+- `ViewUpdate::Continuous` draws one more scene every frame it is in view. `ViewUpdate::Once` draws one snapshot, and
+  another when `generation` (under `MAX_VIEW_GENERATION`) changes. The same picture at a different rate: a quality row is
+  these two and a shader with no view.
+- Read it with `engine_texture(engine_uv(input.world))`: that stays on the surface under both updates, `screen_uv` only
+  under `Continuous`. A sprite is centred on its point, so half of it is under the road.
+- **One extra scene a frame at most**: the first seat with the portal in view has it; every other view of a split, and a
+  later window, gets `engine_texture_bound()` false. Your shader's fallback is what they see.
+- No mod shader draws inside the view, so the far side of a portal does not show your surfaces.
+- A view at the top of a loop is upside down, because the road is. Check where your exit lands. Example: `window/`.
 
 ## Sounds: `play_mod_sound`
 

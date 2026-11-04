@@ -1,0 +1,19 @@
+# The window's surface: one particle drawn by fx/window.wgsl, standing for the guest's `STANDS`.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/effect.tosd", version = "1.0.0" }
+
+axis = "up"
+
+[[emitter]]
+name = "window"
+duration = 1
+per-emission = 1
+lifetime = [240, 0]
+speed = [0.0, 0.0]
+spread = 0
+drag = 1.0
+live-cap = 2
+size = 42.0
+alpha = 1.0
+colour = "#30d0ff"
+shader = "window"
