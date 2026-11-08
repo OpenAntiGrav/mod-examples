@@ -38,6 +38,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 | `[channels]` | `publishes = ["<mod id>/<name>"]`, `listens = [...]`: the event channels the mod's modules send on and hear (see below). Names are `<mod id>/<name>` (lowercase letters, digits, `-`, `_`; the id may also have `.`); a published one starts with this mod's own id. Malformed, repeated or foreign-namespace names refuse the mod at load, by name. The MODS page shows SENDS and HEARS, and **NO ONE SENDS** when a listened channel is sent by no mod (or track file) that is on |
 | `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its index in **name order** |
 | `[icons]` | `name = "path.png"`: PNGs for `hud_mod_icon` (missing or unreadable draws nothing, load report says so) |
+| `[texture-pack]` | `format = "ppsspp"` (the only one), optional `ini` (default `textures.ini`) and `serials`: the mod is a PPSSPP texture pack drawn in place of the disc's textures. It starts **off** (`[mod] default-enabled`, absent means false here and true for every other mod). A folder or zip with a `textures.ini` at its root and no `oag-mod.toml` is recognised without one |
 | `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it |
 
 Other files: `strings/<language>.toml` (`[strings]` rows `ID = { text = "...", human = false }`;
@@ -250,6 +251,15 @@ track = "Vostok"
 - **Kept while off.** Turning a mod off on the MODS page deletes nothing; turning it on
   restores its picks. There is no cleanup and no size cap.
 - **Restart.** The table seeds the menu's rows when the menu opens, so a pick survives a restart.
+
+## Texture packs
+
+A PPSSPP pack needs no manifest: the engine recognises a folder or zip with `textures.ini`
+at its root (or a folder holding `textures.zip`) as a mod `ppsspp.<name>` that starts off; a
+player turns it on on the MODS page. Write an `oag-mod.toml` with `[texture-pack]` only to give
+it a name, release and licence. It replaces a PSP disc's `.vex` textures (hulls, tracks) and
+whole-image `.mip` textures by PPSSPP's key; atlases cut by pixel offset (the HUD sheet, fonts)
+keep the disc's picture. Engine `docs/tools/mods.md`, "Texture packs".
 
 ## Particle effects
 
