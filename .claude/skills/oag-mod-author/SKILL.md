@@ -48,6 +48,26 @@ fallback), `menu.toml` (menu rows, closed set of existing pages and actions; a `
 module needs an engine built with the `extensions` feature. No module runs in an
 original campaign or a network race; a race running one is MODDED and records no replay.
 
+## A custom campaign, `campaigns/<id>.toml`
+
+The engine's `docs/formats/custom-campaign.md` is the spec; `example-campaign/` is the worked file. Beyond
+`[campaign]`, `[[grid]]` and `[[grid.event]]`, a campaign sets **its difficulty once**, in `[campaign]`:
+
+```toml
+[campaign]
+difficulty = "medium"   # easy | medium | hard (the original driver), or novice | skilled | elite | ace (ours)
+progression = "ramp"    # flat (default: every cell at the base) | ramp (first cell at the base, last at the top)
+```
+
+- It is the base for every event that names no `difficulty` in its own `[grid.event.field]`; an event that does
+  keeps its own. An event with no `[field]` follows it too. With neither key set, the player's screen rung applies as before.
+- An event takes the rung of the driver it flies; a word from the other ladder keeps its relative place
+  (`easy` = `novice`, `medium` = `skilled`, `hard` = `ace`).
+- "Later" is the tier's position in the file, then the event's position within the tier, every event counting.
+  A ramp with no `difficulty` starts at the bottom. There is no per-tier step in v1.0.
+- The in-game editor (Pulse: RACE CAMPAIGN, NEW CAMPAIGN) writes the same two keys from its campaign page, and can fill the
+  whole grid from a seed; what it writes is an ordinary file you can open and edit.
+
 ## The guest SDK, `oag-ext` (`crates/ext` in the engine)
 
 Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the state with
