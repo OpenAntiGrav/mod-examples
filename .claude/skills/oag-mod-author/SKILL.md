@@ -283,6 +283,10 @@ fn mod_fragment(input: ModInput) -> vec4<f32> {
 camera sees through a portal pair at two lap progresses (track units, from `Craft::progress()` wrapped by
 `Observation::course_length()`, never below zero). Re-send it each tick it should hold. Never hashed.
 
+- **The exit can be a trigger**: `reply.portal_view_to_trigger(&craft, (entrance, trigger), radius, update,
+  generation)` names it by a track trigger's index (as `trigger-enter` and `Distance::Trigger` count them), so a
+  portal whose far end is on a fork's route shows the route's deck, not the ring under it. A trigger the track lacks
+  asks for nothing. The entrance is always a progress.
 - `radius`, whole world units from 1: how far your surface reaches from the entrance's centre; a portal out of the view
   draws nothing and costs nothing.
 - `ViewUpdate::Continuous` draws one more scene every frame it is in view. `ViewUpdate::Once` draws one snapshot, and
