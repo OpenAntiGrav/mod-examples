@@ -321,8 +321,10 @@ engine side is `tests::extension_sounds`, the format `docs/formats/mod-sound.md`
   when the command lands, `Lap(share)`, `Progress(p)` (a place on the lap, units from the start
   line), `Trigger(n)` (the course point nearest track trigger `n`'s centre). The exit must be on
   the course ring (the track's spline): a track portal pair is two trigger volumes and a spline
-  through both, its stretch between never driven. Branch routes and exits off the spline are not
-  supported.
+  through both, its stretch between never driven. A `Trigger(n)` whose centre is nearer a fork
+  route's samples than the ring's lands on that route (the craft on the route, its driver on the
+  route's line); the other distances are shares of the ring and land on it. Exits off the spline
+  are not supported.
 - **`reply.scale_speed(&craft, factor)`** (command 28): velocity times `factor` (0 to 2), once,
   at this call; a `transit` the same call takes its exit speed after it.
 - **`reply.probe_clearance(&craft, distance, radius)`** (command 29): does a half disc of
