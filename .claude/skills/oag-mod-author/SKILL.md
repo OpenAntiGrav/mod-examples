@@ -42,6 +42,7 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 | `[shaders]` | `name = "fx/name.wgsl"` (`.wgsl` or `.wesl`): your own fragment shaders, see "Shaders". A guest names one by its index in **name order**, an effect's `shader` key by its name |
 | `[sounds]` | `name = "sounds/name.wav"`: your own sounds, 16-bit PCM WAV (mono or stereo, any rate, at most 4 MiB), never a game's audio. A guest plays one with `play_mod_sound` by its index in **name order**; a file that fails to decode plays nothing and the load report names it |
 | `[icons]` | `name = "path.png"` or `"path.svg"`: icons for `hud_mod_icon` and `[pickup]` (missing or unreadable draws nothing, load report names the file and the error). An **SVG** is rasterised at load, off the render thread, at the exact pixel size the pickup slot has on screen, and again (still off the render thread) when the window size or Safe Area changes, so a hard edge stays one texel wide at every size; `hud_mod_icon` draws it at that slot size where the HUD has a pickup slot, else at its declared size; its `width`/`height` (or viewBox) set the aspect and, on Pure, the size in layout units. No `<text>` (a text node draws nothing: convert it to paths) and no `<image>` (never read). A PNG is drawn as authored and scaled, so pixel art stays a PNG. See `energy-turbo/icons/energy.svg` |
+| `[texture-pack]` | `format = "ppsspp"` (the only one), optional `ini` (default `textures.ini`) and `serials`: the mod is a PPSSPP texture pack drawn in place of the disc's textures. It starts **off** (`[mod] default-enabled`, absent means false here and true for every other mod). A folder or zip with a `textures.ini` at its root and no `oag-mod.toml` is recognised without one; `oag-mod init-pack <folder>` writes that manifest out |
 | `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it. Optional `[pickup.titles.<title>]` tables (title = a lowercased hyphenated title name such as `wipeout-hd`) give `icon` and/or `colour` for one title over the base look: ship one icon per title. The icon is scaled (aspect kept) to the box the title's own Turbo glyph fills and centred on it, measured from its drawn pixels, so a transparent margin never shrinks it; Pure draws its striped backdrop and then the PNG at its own size (shrunk to fit), centred on the backdrop: ship the glyph alone, about 55x28. Optional `[[pickup.odds]]` rows inside it, `{ title?, class?, ai, human, front, back }` (weights finite, at least 0), make the **weapon pads** hand the pickup out beside the title's weapons at the most specific matching row (title and class, title, class, neither; `class` is a pickup table's class, any case, so 2048's per-class tables each take a row). That module then owns the mod pickup from the race start; a second mod's rows are left out; a fault ends the odds |
 
 Other files: `strings/<language>.toml` (`[strings]` rows `ID = { text = "...", human = false }`;
@@ -50,6 +51,26 @@ fallback), `menu.toml` (menu rows, closed set of existing pages and actions; a `
 `campaigns/*.toml`, `pilots/*.toml`, `tracks/*.track.toml` + `.glb`. A mod with a
 module needs an engine built with the `extensions` feature. No module runs in an
 original campaign or a network race; a race running one is MODDED and records no replay.
+
+## A custom campaign, `campaigns/<id>.toml`
+
+The engine's `docs/formats/custom-campaign.md` is the spec; `example-campaign/` is the worked file. Beyond
+`[campaign]`, `[[grid]]` and `[[grid.event]]`, a campaign sets **its difficulty once**, in `[campaign]`:
+
+```toml
+[campaign]
+difficulty = "medium"   # easy | medium | hard (the original driver), or novice | skilled | elite | ace (ours)
+progression = "ramp"    # flat (default: every cell at the base) | ramp (first cell at the base, last at the top)
+```
+
+- It is the base for every event that names no `difficulty` in its own `[grid.event.field]`; an event that does
+  keeps its own. An event with no `[field]` follows it too. With neither key set, the player's screen rung applies as before.
+- An event takes the rung of the driver it flies; a word from the other ladder keeps its relative place
+  (`easy` = `novice`, `medium` = `skilled`, `hard` = `ace`).
+- "Later" is the tier's position in the file, then the event's position within the tier, every event counting.
+  A ramp with no `difficulty` starts at the bottom. There is no per-tier step in v1.0.
+- The in-game editor (Pulse: RACE CAMPAIGN, NEW CAMPAIGN) writes the same two keys from its campaign page, and can fill the
+  whole grid from a seed; what it writes is an ordinary file you can open and edit.
 
 ## The guest SDK, `oag-ext` (`crates/ext` in the engine)
 
@@ -376,6 +397,17 @@ track = "Vostok"
 - **Kept while off.** Turning a mod off on the MODS page deletes nothing; turning it on
   restores its picks. There is no cleanup and no size cap.
 - **Restart.** The table seeds the menu's rows when the menu opens, so a pick survives a restart.
+
+## Texture packs
+
+A PPSSPP pack needs no manifest: the engine recognises a folder or zip with `textures.ini`
+at its root (or a folder holding `textures.zip`) as a mod `ppsspp.<name>` that starts off; a
+player turns it on on the MODS page. Write an `oag-mod.toml` with `[texture-pack]` only to give
+it a name, release and licence (`oag-mod init-pack <folder>` writes a starting one, with
+`default-enabled = false`; `just fetch-texture-packs` already does for the packs it fetches, and never
+rewrites an existing one). It replaces a PSP disc's `.vex` textures (hulls, tracks) and
+whole-image `.mip` textures by PPSSPP's key; atlases cut by pixel offset (the HUD sheet, fonts)
+keep the disc's picture. Engine `docs/tools/mods.md`, "Texture packs".
 
 ## Particle effects
 

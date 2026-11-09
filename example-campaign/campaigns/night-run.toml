@@ -16,6 +16,11 @@ name = "NIGHT RUN"
 description = "Eleven events over two tiers, opening one at a time."
 # The default for every tier; each tier below may say otherwise.
 reveal = "hidden"
+# The opponents' difficulty for every event that names none of its own: from medium at the
+# first event listed up to hard at the last. An event with its own `difficulty` keeps it
+# (Clean Race, below).
+difficulty = "medium"
+progression = "ramp"
 
 # Tier 1: every event drawn from the start, the unopened ones with their lock.
 [[grid]]
