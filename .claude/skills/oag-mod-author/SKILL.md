@@ -279,9 +279,11 @@ at its root (or a folder holding `textures.zip`) as a mod `ppsspp.<name>` that s
 player turns it on on the MODS page. Write an `oag-mod.toml` with `[texture-pack]` only to give
 it a name, release and licence (`oag-mod init-pack <folder>` writes a starting one, with
 `default-enabled = false`; `just fetch-texture-packs` already does for the packs it fetches, and never
-rewrites an existing one). It replaces a PSP disc's `.vex` textures (hulls, tracks) and
-whole-image `.mip` textures by PPSSPP's key; atlases cut by pixel offset (the HUD sheet, fonts)
-keep the disc's picture. Engine `docs/tools/mods.md`, "Texture packs".
+rewrites an existing one). It replaces a PSP disc's `.vex` textures (hulls, tracks), whole-image
+`.mip` textures, the race HUD's sprite sheet and the fonts the HUD draws with by PPSSPP's key, at
+the picture's own size (a PNG or a PPSSPP `.zim`; a font picture must be a whole multiple of the
+atlas, the same on both axes, at most 8192 a side). The front end's menus, boot art and loading
+screen keep the disc's picture. Engine `docs/tools/mods.md`, "Texture packs".
 
 ## Particle effects
 
