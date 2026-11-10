@@ -266,6 +266,8 @@ title's target and writes colour alone.
 fn mod_fragment(input: ModInput) -> vec4<f32> {
     // input.uv (0..1 across the surface, y down), input.screen_uv, input.world, input.colour, input.time,
     // input.between (-1..0: how far short of this tick the frame is drawn)
+    // craft_frame() (the view's own craft in eye space: right, up, back, place),
+    // eye_ray(input.screen_uv) (that texel's ray in eye space, z -1)
     return input.colour * mod_texture(input.uv + vec2<f32>(input.time * param_speed(), 0.0));
 }
 ```
@@ -300,11 +302,17 @@ camera sees through a portal pair at two lap progresses (track units, from `Craf
 - **One extra scene a frame at most**: the first seat with the portal in view has it; every other view of a split, and a
   later window, gets `engine_texture_bound()` false. Your shader's fallback is what they see.
 - No mod shader draws inside the view, so the far side of a portal does not show your surfaces.
-- **Your own craft's transit**: while it is out of the world its camera eases onto the framing it has at the exit,
-  carried back to where the craft stands. So `portal_view(&craft, (craft.progress(), exit), ..)` for the craft in
-  the transit, with `exit` the transit's own, shows by the last tick the picture the camera has on the exit tick,
-  and a screen fill can open on it with no cut: `engine_texture(input.screen_uv)` (`Continuous`, or a `Once` whose
-  `generation` you change once the camera has settled, 16 ticks in). `oag.slipstream`'s `fx/wormhole.wgsl`.
+- **Your own craft's transit**: while it is out of the world its camera flies on, along the framing it has at the
+  exit carried back to where the craft stands, and its `portal_view` is seen from that seat. So
+  `portal_view(&craft, (craft.progress(), exit), ..)` for the craft in the transit, with `exit` the transit's own,
+  shows from 16 ticks in the picture the camera has on the exit tick, and a screen fill can show it with no cut:
+  `engine_texture(input.screen_uv)` (`Continuous`, or a `Once` whose `generation` you change then).
+- **A backdrop** (`//! fill = "backdrop"` in the shader's header): a `screen_fill_shaded` through it is drawn before
+  the crafts and, where its alpha is 0.5 or more, in place of the world: everything drawn after it is hidden there
+  but the view's own craft, which is drawn in front of it even while it is out of the world in a transit (hull and
+  flame shapes; no boost plume, particle exhaust or trail). Under 0.5 it is an ordinary fill over everything,
+  so fade it out below that. Cut your own geometry round the craft with `craft_frame()` and
+  `eye_ray(input.screen_uv)`: `oag.slipstream`'s `fx/wormhole.wgsl` is a tunnel done that way.
 - **A scalar that moves** is stepped a tick at a time: read it as `param_x() + rate * input.between` so a frame
   between two ticks draws the value between them.
 - A view at the top of a loop is upside down, because the road is. Check where your exit lands. Example: `window/`.
