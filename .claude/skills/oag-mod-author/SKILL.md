@@ -232,6 +232,8 @@ fault (the SDK takes a `&Craft`).
   the picture, summed with the title's own flash if one runs. A split-screen seat wears only its own slot's.
 - **`reply.fov_offset(&craft, degrees)`** (command 31): vertical field of view plus `degrees`, within
   `MAX_FOV_OFFSET_DEG` (30) either way, before the player's FOV setting's aspect fit. `Refused::Range` out of it.
+  Drawn between two ticks' values on a display faster than 60 Hz, so send a ramp, not a jump: a step of 20 degrees
+  on one tick is a visible snap (`oag.slipstream`'s `Flight::widening` is one curve from the approach to after the exit).
 - **`reply.fire_mod_effect_ahead(&craft, index, Distance)`** (command 32): your `[effects]` entry `index` (name order) played
   at the middle of the road `distance` ahead (`Distance::Units(60.0)`, `Seconds`, `Lap`, `Progress`, `Trigger`), standing
   in the world for the effect's lifetime (a PNG `texture`, one emission, `speed = [0, 0]`, `lifetime = [150, 0]`): a
@@ -262,7 +264,8 @@ title's target and writes colour alone.
 //! default = 2.0
 
 fn mod_fragment(input: ModInput) -> vec4<f32> {
-    // input.uv (0..1 across the surface, y down), input.screen_uv, input.world, input.colour, input.time
+    // input.uv (0..1 across the surface, y down), input.screen_uv, input.world, input.colour, input.time,
+    // input.between (-1..0: how far short of this tick the frame is drawn)
     return input.colour * mod_texture(input.uv + vec2<f32>(input.time * param_speed(), 0.0));
 }
 ```
@@ -297,6 +300,13 @@ camera sees through a portal pair at two lap progresses (track units, from `Craf
 - **One extra scene a frame at most**: the first seat with the portal in view has it; every other view of a split, and a
   later window, gets `engine_texture_bound()` false. Your shader's fallback is what they see.
 - No mod shader draws inside the view, so the far side of a portal does not show your surfaces.
+- **Your own craft's transit**: while it is out of the world its camera eases onto the framing it has at the exit,
+  carried back to where the craft stands. So `portal_view(&craft, (craft.progress(), exit), ..)` for the craft in
+  the transit, with `exit` the transit's own, shows by the last tick the picture the camera has on the exit tick,
+  and a screen fill can open on it with no cut: `engine_texture(input.screen_uv)` (`Continuous`, or a `Once` whose
+  `generation` you change once the camera has settled, 16 ticks in). `oag.slipstream`'s `fx/wormhole.wgsl`.
+- **A scalar that moves** is stepped a tick at a time: read it as `param_x() + rate * input.between` so a frame
+  between two ticks draws the value between them.
 - A view at the top of a loop is upside down, because the road is. Check where your exit lands. Example: `window/`.
 
 ## Sounds: `play_mod_sound`
@@ -317,8 +327,8 @@ engine side is `tests::extension_sounds`, the format `docs/formats/mod-sound.md`
 - **`reply.transit(&craft, ticks, distance, exit_factor)`** (command 27): the craft leaves the
   world for `ticks` (1 to 600): frozen where it was, not stepped, not drawn, not collided with,
   not hit or locked, its controls and pickup presses ignored, its reset triggers held. Then it is
-  put at `distance` and stepped from there the same tick, at `exit_factor` (0 to 2) times its
-  entry speed. Laps count through the jump; a finish in it is timed at the exit tick. Not if the lap's half-way gate is still shut (a lap entered by a late jump, not yet driven past its middle): that crossing is no lap and no finish, as for a driven one.
+  put at `distance`, on the road's middle at flying height, and stepped from there the same tick, at
+  `exit_factor` (0 to 2) times its entry speed. Its camera is seated behind it on that tick. Laps count through the jump; a finish in it is timed at the exit tick. Not if the lap's half-way gate is still shut (a lap entered by a late jump, not yet driven past its middle): that crossing is no lap and no finish, as for a driven one.
   `TransitEnd{slot}` arrives on that call. `Refused::Range` for a craft not racing or already
   `in_transit()`; the host faults the module if the distance does not resolve on this track.
 - **`Distance`**: always forward and under a lap. `Units(u)`, `Seconds(s)` at the speed it has
