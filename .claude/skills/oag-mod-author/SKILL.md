@@ -86,7 +86,7 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
 - `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`, `in_transit()`,
   `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `speed()` (track units a second, what
   distances along the circuit are in; over `TICKS_PER_SECOND` it is units a tick), `pickup()`,
-  `progress() -> Option<f32>` (units along the lap, negative on the grid, `None` before its first
+  `progress() -> Option<f32>` (units along the lap in `0..course_length`, just under a lap on the grid behind the line, `None` before its first
   fix; last tick's), `place()` (1-based, as the HUD shows), `aim_at(slot) -> Aim` (where that
   craft sits in this craft's own frame: `ahead()`, `across()`, `above()` in world units quantised
   to 2, and `in_cone(range, spread)`, ahead and within `spread` (a tangent: 0.3 is about 17
@@ -281,7 +281,9 @@ fn mod_fragment(input: ModInput) -> vec4<f32> {
   (below), gamma-authored and opaque; transparent black and unbound for a view without one, so **always draw a fallback**.
 - Drawn on: a particle (an emitter's `shader = "<name>"`, no `texture` beside it), a fill, a beam.
 - **No loop of any kind** (`for`, `while`, `loop`): one that never ended would hang the GPU, so all are refused. Write
-  the steps out or call a helper several times. Also refused: your own bindings, entry points, an `override` with no
+  the steps out or call a helper several times. Helpers that call helpers multiply, so a function's work is counted
+  through its calls (its expressions and statements plus each callee's, once per call) and one over 32,768 is refused
+  by name; Slipstream's tunnel is about 1,300. Also refused: your own bindings, entry points, an `override` with no
   default, an array over 64 KiB, a file over 64 KiB.
 - A refused file draws nothing (never a flat colour), the load report quotes naga's error with your file's line
   numbers, and the race runs. A guest can't tell; check the report.
