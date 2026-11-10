@@ -1,7 +1,7 @@
 //! Energy Turbo: a pickup of its own, handed out in place of every second Turbo.
 //!
 //! - **Pick it up**: `pickup_roll` swaps every second Turbo a weapon pad draws for this
-//!   pickup. Its look is the manifest's `[pickup]` (the title's Turbo icon on a translucent
+//!   pickup. Its look is the manifest's `[pickup]` (the mod's own SVG icon on a translucent
 //!   red backdrop), which the title's own fade plays on; while boosting, `hud_bar_extra`
 //!   and `hud_shake` show the added speed and the drain. The engine never fires or absorbs
 //!   it.

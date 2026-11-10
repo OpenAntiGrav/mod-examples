@@ -1,0 +1,30 @@
+# Its own workspace, built for wasm32-unknown-unknown by `build.sh`; `cargo test` runs
+# the logic natively.
+[workspace]
+
+[package]
+name = "window"
+version = "1.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+# The guest SDK from the engine's `main` (ABI 1 is edited in place before release, so a
+# module is rebuilt against the engine it runs on; a release pins a `rev`). Inside the
+# engine checkout, `assets/mods/.cargo/config.toml` patches it to the engine's own SDK.
+[dependencies]
+oag-ext = { git = "https://github.com/topaxi/OpenAntiGrav", branch = "main" }
+
+[dev-dependencies]
+oag-ext = { git = "https://github.com/topaxi/OpenAntiGrav", branch = "main", features = ["test"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true

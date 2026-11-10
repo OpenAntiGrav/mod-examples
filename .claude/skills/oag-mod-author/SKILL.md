@@ -26,20 +26,24 @@ Starts with `toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/
 `[mod]`: `id` (lowercase letters, digits, `.`, `-`, `_`), `name`, `version` (semver),
 `authors`, `license` (SPDX) or `license-file`, `description`, optional `repository`,
 `homepage`, `keywords`, `titles` (slugs: `wipeout-pulse`, `wipeout-pure`, `wipeout-hd`,
-`wipeout-omega-collection`, `wipeout-2048`; empty means any), `oag` (semver requirement).
+`wipeout-omega-collection`, `wipeout-2048`; empty means any), `oag` (semver requirement),
+`default-enabled` (bool, default `true`; `false` ships the mod off until the player turns it on
+on the MODS page, stored as `[mods] enabled = [id]` in the settings file).
 No licence still loads but is flagged. Check one with `just mods-check <path>`
 (engine checkout); `just mods-list` shows what the search finds.
 
 | Table | Purpose |
 | --- | --- |
-| `[extension]` | `simulation = true` (required with a module), `api = 1`, `memory_pages` (1 to 256, default 16; 2 holds the SDK with a 16 KiB stack), `state_bytes` (at most 1,024; must equal the guest's `oag_state_len`) |
+| `[extension]` | `simulation = true` (required with a module), `api = 1`, `memory_pages` (1 to 256, default 16; 2 holds the SDK with a 16 KiB stack), `state_bytes` (at most 1,024; must equal the guest's `oag_state_len`), `drives_ai_pickup` (bool, default `false`: the engine raises `pickup-fire` for an AI craft holding your pickup wherever it would fire a Turbo; `true` raises nothing for the AI and the module decides from the observation, then `clear_pickup`s) |
 | `[extension.rules]` | `module = "ext/x.wasm"`: runs in every race the mod is on for, every craft, AI too |
 | `[extension.track]` | `module = ...` and `track = "tracks/x.track.toml"`: runs only in a race of that track file, never a disc circuit |
 | `[channels]` | `publishes = ["<mod id>/<name>"]`, `listens = [...]`: the event channels the mod's modules send on and hear (see below). Names are `<mod id>/<name>` (lowercase letters, digits, `-`, `_`; the id may also have `.`); a published one starts with this mod's own id. Malformed, repeated or foreign-namespace names refuse the mod at load, by name. The MODS page shows SENDS and HEARS, and **NO ONE SENDS** when a listened channel is sent by no mod (or track file) that is on |
 | `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its index in **name order** |
-| `[icons]` | `name = "path.png"`: PNGs for `hud_mod_icon` (missing or unreadable draws nothing, load report says so) |
+| `[shaders]` | `name = "fx/name.wgsl"` (`.wgsl` or `.wesl`): your own fragment shaders, see "Shaders". A guest names one by its index in **name order**, an effect's `shader` key by its name |
+| `[sounds]` | `name = "sounds/name.wav"`: your own sounds, 16-bit PCM WAV (mono or stereo, any rate, at most 4 MiB), never a game's audio. A guest plays one with `play_mod_sound` by its index in **name order**; a file that fails to decode plays nothing and the load report names it |
+| `[icons]` | `name = "path.png"` or `"path.svg"`: icons for `hud_mod_icon` and `[pickup]` (missing or unreadable draws nothing, load report names the file and the error). An **SVG** is rasterised at load, off the render thread, at the exact pixel size the pickup slot has on screen, and again (still off the render thread) when the window size or Safe Area changes, so a hard edge stays one texel wide at every size; `hud_mod_icon` draws it at that slot size where the HUD has a pickup slot, else at its declared size; its `width`/`height` (or viewBox) set the aspect and, on Pure, the size in layout units. No `<text>` (a text node draws nothing: convert it to paths) and no `<image>` (never read). A PNG is drawn as authored and scaled, so pixel art stays a PNG. See `energy-turbo/icons/energy.svg` |
 | `[texture-pack]` | `format = "ppsspp"` (the only one), optional `ini` (default `textures.ini`) and `serials`: the mod is a PPSSPP texture pack drawn in place of the disc's textures. It starts **off** (`[mod] default-enabled`, absent means false here and true for every other mod). A folder or zip with a `textures.ini` at its root and no `oag-mod.toml` is recognised without one; `oag-mod init-pack <folder>` writes that manifest out |
-| `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it |
+| `[pickup]` | **Required** of a mod that sends `give_pickup` or `pickup_roll`: `icon = { title = "turbo" }` or `{ mod = "<key of [icons]>" }`, and `colour = { rgba = "RRGGBBAA" }` or `{ title = "shield" }`. `title` is a lowercase weapon (`rocket` ... `disruptor`, `leachbeam`, `repulser`). Exactly one key per side; a bad weapon, a `mod` outside `[icons]` or a bad `rgba` refuses the mod at load, by name. Without the table the module is faulted for the race on its first `give_pickup`/`pickup_roll`, naming it. Optional `[pickup.titles.<title>]` tables (title = a lowercased hyphenated title name such as `wipeout-hd`) give `icon` and/or `colour` for one title over the base look: ship one icon per title. The icon is scaled (aspect kept) to the box the title's own Turbo glyph fills and centred on it, measured from its drawn pixels, so a transparent margin never shrinks it; Pure draws its striped backdrop and then the PNG at its own size (shrunk to fit), centred on the backdrop: ship the glyph alone, about 55x28. Optional `[[pickup.odds]]` rows inside it, `{ title?, class?, ai, human, front, back }` (weights finite, at least 0), make the **weapon pads** hand the pickup out beside the title's weapons at the most specific matching row (title and class, title, class, neither; `class` is a pickup table's class, any case, so 2048's per-class tables each take a row). That module then owns the mod pickup from the race start; a second mod's rows are left out; a fault ends the odds |
 
 Other files: `strings/<language>.toml` (`[strings]` rows `ID = { text = "...", human = false }`;
 `human = true` only when a person wrote or approved it; ship `english.toml`, it is the
@@ -73,27 +77,41 @@ progression = "ramp"    # flat (default: every cell at the base) | ramp (first c
 Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the state with
 `blob!`, name the type in `export!`.
 
-- `Observation`: `tick()`, `craft(slot) -> Option<Craft>`, `crafts()`, `events()`, `track()`.
+- `Observation`: `tick()`, `course_length()` (one lap, units, 0 without a course), `title()` (a `u32` to compare with `title!("wipeout-hd")`, the slugs of a manifest's `titles`; Pulse PSP and PS2 are one title; 0 if the host says none), `craft(slot) -> Option<Craft>`, `crafts()`, `events()`, `track()`.
 - `Track`: `whole()`, `speed_pad(i)`, `weapon_pad(i)`, `trigger(i)`, `path(i)`, `route(i)` and
   their counts (`speed_pads()`, `weapon_pads()`, `triggers()`, `paths()`, `routes()`); each
   entity has `prop(key)`, `to_world()`, `bounds()`. A route (a way from a fork back to the lap)
   carries the properties of the spline paths it drives, so `route(r).prop(prop!("pit"))` finds
   the route through a path tagged `mod_pit`.
-- `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`,
-  `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `pickup()`.
+- `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`, `in_transit()`,
+  `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `speed()` (track units a second, what
+  distances along the circuit are in; over `TICKS_PER_SECOND` it is units a tick), `pickup()`,
+  `progress() -> Option<f32>` (units along the lap in `0..course_length`, just under a lap on the grid behind the line, `None` before its first
+  fix; last tick's), `place()` (1-based, as the HUD shows), `aim_at(slot) -> Aim` (where that
+  craft sits in this craft's own frame: `ahead()`, `across()`, `above()` in world units quantised
+  to 2, and `in_cone(range, spread)`, ahead and within `spread` (a tangent: 0.3 is about 17
+  degrees) of the forward axis; zero for itself, an empty slot or a slot past 7; `Race::with_aim`
+  sets it in the native harness).
 - `Event`: `WallContact`, `PickupFire`, `PickupAbsorbed`, `SpeedPad{pad}`, `WeaponPad{pad}`,
-  `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`, `Mod{slot, from, channel, value}`. At most 32 per call; the `Mod` events come first.
+  `TriggerEnter{trigger}`, `TriggerExit{trigger}`, `Hit{amount, weapon}`, `Mod{slot, from, channel, value}`,
+  `TransitEnd{slot}` (on the exit tick's own call), `Clearance{slot, fits, ahead}` (the answer to last
+  call's `probe_clearance`). At most 32 per call; the `Mod` events come first.
 - `Reply`: one method per command, `Result<(), Refused>`. `Refused` is `Full` (96 commands),
-  `Repeated` (a second per-craft thrust, shield, pad or route command), `Range`, `HudItems`
+  `Repeated` (a second per-craft thrust, shield, pad, route, transit, scale-speed or probe command), `Range`, `HudItems`
   (more than 32 text/icon items per craft per tick, or the string pool full), `Pickup`,
   `PickupTint` (`hud_tint` of the pickup), `Emits` (more than 4 `emit`s this tick).
   Handle or `let _ =` it on purpose; the host would fault on what the SDK refuses.
 - `Slot` and `Craft`: a command naming a slot takes a `&Craft`, so an empty slot cannot be named.
 - `blob!`: little-endian, field order, no padding; integers, `f32`, `bool`, fixed arrays,
   nested `blob!` structs.
+- `title!("wipeout-hd")`: compile-time key of a title slug, for `Observation::title()` (a per-title portal colour, say). `Race::with_title` sets it in the native harness.
 - `prop!("name")`: compile-time key (FNV-1a 32) for a track property; `entity.prop(key) -> Option<f32>`.
 - `Line`: fixed-size text buffer with `time(ticks)` and `number(n)`, no allocator.
-- `oag_ext::test::Race<E>`: native test harness (`with_craft`, `with_track`, `event`, `tick() -> Vec<Command>`, `state()`), feature `test` as a dev-dependency.
+- `oag_ext::lap`: `ahead(progress, units, length)` (a place on the lap `units` on, taken round the line, in
+  `0..length`) and `gap(from, to, length)` (how far on `to` is the short way round, negative once past it). Use
+  them for every sum or difference of two progresses: the start line is between them as often as not.
+- `oag_ext::test::Race<E>`: native test harness (`with_craft`, `with_course(length, slot, progress, place)`,
+  `set_progress(slot, progress)` to fly a craft on between two ticks, `with_track`, `event`, `tick() -> Vec<Command>`, `state()`), feature `test` as a dev-dependency.
 
 Minimal complete guest (Wall Penalty, trimmed):
 
@@ -178,14 +196,18 @@ under `assets/mods/` always builds against the SDK in that tree.
   value) are dropped, counted and logged by the host, never a fault.
 - **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (3 now; ABI 1 is edited in place before release, so rebuild every module against the engine you run: the event record is 16 bytes now). A module built for
   another revision is refused by name: rebuild against the engine you run.
-- A pickup of the mod's own (`Pickup::Ours`): one module owns the kind per race, and a race
-  without weapons refuses it. It draws the look of `[pickup]`; there is no implicit Turbo
+- A pickup of the mod's own (`Pickup::Ours`): every mod that declares a `[pickup]` has a kind of its
+  own (up to 32 a race, in mod id order; the engine runs at most 4 simulation mods), so two mods
+  hand out their own at once. You only ever give, clear and roll yours; `pickup()` reads your
+  kind as `Pickup::Ours` and another mod's as `Pickup::Other(kind)`; `pickup-fire` and
+  `pickup-absorbed` reach you only for your kind. A mod that gives, rolls or clears with no
+  `[pickup]` is faulted. A race without weapons refuses it. It draws the look of `[pickup]`; there is no implicit Turbo
   icon. `reply.pickup_look(&craft, Icon, Colour)` (command 22) overrides it for one tick:
   `Icon::{Title(Weapon), Mod(ModIcon::new("name"))}`, `Colour::{Title(Weapon), Rgba(Rgba)}`,
   with maps `icon::title::TURBO`, `colour::title::SHIELD` and so on for every weapon. A
   title colour is that title's own backdrop row (Pulse, HD, Omega); the title's fade-in,
   overshoot, size pulse and fade-out play on any look; the last look is kept for the
-  fade-out. **Pure has no backdrop widget: both colour kinds draw nothing there**; 2048
+  fade-out. **Pure has no backdrop colour widget: both colour kinds draw nothing there** (its backdrop is a striped model, its mod icon a PNG on it); 2048
   keeps its backdrop as authored. `hud_tint` of `HudElement::Pickup` is refused
   (`Refused::PickupTint`; a raw record faults the module): use `pickup_look`. `hud_shake`
   on `Pickup` still works.
@@ -194,7 +216,7 @@ under `assets/mods/` always builds against the SDK in that tree.
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`; the state blob; the fault flag and tick | `play_cue`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`, `transit`, `scale_speed`, `probe_clearance` (its pending answer); the state blob; the fault flag and tick | `play_cue`, `play_mod_sound`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
@@ -205,6 +227,141 @@ and icons sit at one of nine `Anchor`s via `HudPlace`, at most 48 bytes a string
 the driver can drive it; the host still throws the coin. Re-send it every tick it should hold.
 It moves a driver only (an AI craft, or a person's Autopilot); the AI drives the route with the
 player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane with it.
+
+## View outputs: `screen_fill`, `fov_offset`, `fire_mod_effect_ahead`, `draw_beam`
+
+Outputs only (drawn, never hashed); re-send each tick they should hold. A slot with no craft is a
+fault (the SDK takes a `&Craft`).
+
+- **`reply.screen_fill(&craft, Rgba)`** (command 30): washes that craft's view; the colour times its alpha is added over
+  the picture, summed with the title's own flash if one runs. A split-screen seat wears only its own slot's.
+- **`reply.fov_offset(&craft, degrees)`** (command 31): vertical field of view plus `degrees`, within
+  `MAX_FOV_OFFSET_DEG` (30) either way, before the player's FOV setting's aspect fit. `Refused::Range` out of it.
+  Drawn between two ticks' values on a display faster than 60 Hz, so send a ramp, not a jump: a step of 20 degrees
+  on one tick is a visible snap (`oag.slipstream`'s `Flight::widening` is one curve from the approach to after the exit).
+- **`reply.fire_mod_effect_ahead(&craft, index, Distance)`** (command 32): your `[effects]` entry `index` (name order) played
+  at the middle of the road `distance` ahead (`Distance::Units(60.0)`, `Seconds`, `Lap`, `Progress`, `Trigger`), standing
+  in the world for the effect's lifetime (a PNG `texture`, one emission, `speed = [0, 0]`, `lifetime = [150, 0]`): a
+  camera-facing sprite, e.g. a half disc. The sprite is centred on that point (road level, lifted a little), so put a half disc's flat edge on the PNG's middle row with the disc in the upper half, or the road hides it; on a pale track use `alpha-over` in a deep colour (additive washes out). Counts toward the 16 effects a tick. Not a mesh (a shader may draw it, see "Shaders"); nothing draws if the distance
+  does not resolve. Test with `oag_ext::test::Race`; the engine side is `tests::extension_view`.
+
+- **`reply.screen_fill_shaded(&craft, Rgba, shader)`**: the fill through your shader, `Rgba` its `input.colour`, alpha over
+  or added as its header says.
+- **`reply.draw_beam(&craft, to, Rgba, half_width, Option<shader>)`** (command 34): a ribbon facing the camera from the
+  craft to the craft in `to`, this tick; `None` is the flat colour. Nothing draws while either is out of the world. At most
+  16 a tick (`Refused::Beams`), `half_width` in `(0, 32]`, never to itself (`Refused::Range`). `Aim::in_cone` picks a
+  target; add `shield_delta` and it is half a Leach. Example: `tether/`.
+- **`reply.set_shader_param(&craft, shader, index, value)`** (command 35): scalar `index` of a shader in that craft's view,
+  this tick; unset it is the header's default.
+
+## Shaders
+
+A `fx/name.wgsl` of WGSL (a `.wesl` is read as WGSL: no `import`). Leading `//!` lines are a TOML header, the rest
+defines `fn mod_fragment(input: ModInput) -> vec4<f32>`, straight alpha in gamma space; the engine converts it for the
+title's target and writes colour alone.
+
+```wgsl
+//! blend = "add"              # "alpha" (default) or "add"
+//! texture = "fx/noise.png"   # optional, for mod_texture
+//!
+//! [[param]]                  # up to 4: fn param_<name>() -> f32
+//! name = "speed"
+//! default = 2.0
+
+fn mod_fragment(input: ModInput) -> vec4<f32> {
+    // input.uv (0..1 across the surface, y down), input.screen_uv, input.world, input.colour, input.time,
+    // input.between (-1..0: how far short of this tick the frame is drawn)
+    // craft_frame() (the view's own craft in eye space: right, up, back, place),
+    // eye_ray(input.screen_uv) (that texel's ray in eye space, z -1)
+    return input.colour * mod_texture(input.uv + vec2<f32>(input.time * param_speed(), 0.0));
+}
+```
+
+- Also: `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: the view `portal_view` asks the engine for
+  (below), gamma-authored and opaque; transparent black and unbound for a view without one, so **always draw a fallback**.
+- Drawn on: a particle (an emitter's `shader = "<name>"`, no `texture` beside it), a fill, a beam.
+- **No loop of any kind** (`for`, `while`, `loop`): one that never ended would hang the GPU, so all are refused. Write
+  the steps out or call a helper several times. Helpers that call helpers multiply, so a function's work is counted
+  through its calls (its expressions and statements plus each callee's, once per call) and one over 32,768 is refused
+  by name; Slipstream's tunnel is about 1,300. Also refused: your own bindings, entry points, an `override` with no
+  default, an array over 64 KiB, a file over 64 KiB.
+- A refused file draws nothing (never a flat colour), the load report quotes naga's error with your file's line
+  numbers, and the race runs. A guest can't tell; check the report.
+- Contract: engine `docs/architecture/wasm-extensions/mod-shaders.md`. Examples: `tether/fx/*.wgsl`, `window/fx/window.wgsl`.
+
+## A second camera: `portal_view`
+
+**`reply.portal_view(&craft, (entrance, exit), radius, update, generation)`** (command 36): `craft`'s view wants what its
+camera sees through a portal pair at two lap progresses (track units, from `Craft::progress()` wrapped by
+`Observation::course_length()`, never below zero). Re-send it each tick it should hold. Never hashed.
+
+- **The exit can be a trigger**: `reply.portal_view_to_trigger(&craft, (entrance, trigger), radius, update,
+  generation)` names it by a track trigger's index (as `trigger-enter` and `Distance::Trigger` count them), so a
+  portal whose far end is on a fork's route shows the route's deck, not the ring under it. A trigger the track lacks
+  asks for nothing. The entrance is always a progress.
+- `radius`, whole world units from 1: how far your surface reaches from the entrance's centre; a portal out of the view
+  draws nothing and costs nothing.
+- `ViewUpdate::Continuous` draws one more scene every frame it is in view. `ViewUpdate::Once` draws one snapshot, and
+  another when `generation` (under `MAX_VIEW_GENERATION`) changes. The same picture at a different rate: a quality row is
+  these two and a shader with no view.
+- Read it with `engine_texture(engine_uv(input.world))`: that stays on the surface under both updates, `screen_uv` only
+  under `Continuous`. A sprite is centred on its point, so half of it is under the road.
+- **One extra scene a frame at most**: the first seat with the portal in view has it; every other view of a split, and a
+  later window, gets `engine_texture_bound()` false. Your shader's fallback is what they see.
+- No mod shader draws inside the view, so the far side of a portal does not show your surfaces.
+- **Your own craft's transit**: while it is out of the world its camera flies on, along the framing it has at the
+  exit carried back to where the craft stands, and its `portal_view` is seen from that seat. So
+  `portal_view(&craft, (craft.progress(), exit), ..)` for the craft in the transit, with `exit` the transit's own,
+  shows from 16 ticks in the picture the camera has on the exit tick, and a screen fill can show it with no cut:
+  `engine_texture(input.screen_uv)` (`Continuous`, or a `Once` whose `generation` you change then).
+- **A backdrop** (`//! fill = "backdrop"` in the shader's header): a `screen_fill_shaded` through it is drawn before
+  the crafts and, where its alpha is 0.5 or more, in place of the world: everything drawn after it is hidden there
+  but the view's own craft, which is drawn in front of it even while it is out of the world in a transit (hull and
+  flame shapes; no boost plume, particle exhaust or trail). Under 0.5 it is an ordinary fill over everything,
+  so fade it out below that. Cut your own geometry round the craft with `craft_frame()` and
+  `eye_ray(input.screen_uv)`: `oag.slipstream`'s `fx/wormhole.wgsl` is a tunnel done that way.
+- **A scalar that moves** is stepped a tick at a time: read it as `param_x() + rate * input.between` so a frame
+  between two ticks draws the value between them.
+- A view at the top of a loop is upside down, because the road is. Check where your exit lands. Example: `window/`.
+
+## Sounds: `play_mod_sound`
+
+Heard, never hashed. **`reply.play_mod_sound(&craft, index, SoundMode::Once | Loop | Stop)`** (command 33): your
+`[sounds]` entry `index` (name order) from that craft, placed like a title cue on the craft (the player's own craft
+dry, the others positioned, HRTF or rear cue as the player chose; through the master trim and limiter, so keep
+peaks well under full scale). `Once` plays each time it is sent. `Loop` starts a loop that follows the craft and is
+left alone if already running, so re-sending it every tick is harmless; `Stop` ends it. The host ends a loop when
+the module faults, the craft's slot empties or the race finishes. Not counted toward the 16 effects. Name sounds
+by what they are (`portal-open`) and keep the names stable: a sound's index is its place in name order, so adding
+one in the middle moves the others (pin each index in a named const and test it against the manifest, as
+`assets/mods/official/slipstream/guest/src/tests.rs` does). `Race` in `oag_ext::test` returns the commands; the
+engine side is `tests::extension_sounds`, the format `docs/formats/mod-sound.md`.
+
+## Moving a craft along the circuit: `transit`, `scale_speed`, `probe_clearance`
+
+- **`reply.transit(&craft, ticks, distance, exit_factor)`** (command 27): the craft leaves the
+  world for `ticks` (1 to 600): frozen where it was, not stepped, not drawn, not collided with,
+  not hit or locked, its controls and pickup presses ignored, its reset triggers held. Then it is
+  put at `distance`, on the road's middle at flying height, and stepped from there the same tick, at
+  `exit_factor` (0 to 2) times its entry speed. Its camera is seated behind it on that tick. Laps count through the jump; a finish in it is timed at the exit tick. Not if the lap's half-way gate is still shut (a lap entered by a late jump, not yet driven past its middle): that crossing is no lap and no finish, as for a driven one.
+  `TransitEnd{slot}` arrives on that call. `Refused::Range` for a craft not racing or already
+  `in_transit()`; the host faults the module if the distance does not resolve on this track.
+- **`Distance`**: always forward and under a lap. `Units(u)`, `Seconds(s)` at the speed it has
+  when the command lands, `Lap(share)`, `Progress(p)` (a place on the lap, units from the start
+  line), `Trigger(n)` (the course point nearest track trigger `n`'s centre). The exit must be on
+  the course ring (the track's spline): a track portal pair is two trigger volumes and a spline
+  through both, its stretch between never driven. A `Trigger(n)` whose centre is nearer a fork
+  route's samples than the ring's lands on that route (the craft on the route, its driver on the
+  route's line); the other distances are shares of the ring and land on it. Exits off the spline
+  are not supported.
+- **`reply.scale_speed(&craft, factor)`** (command 28): velocity times `factor` (0 to 2), once,
+  at this call; a `transit` the same call takes its exit speed after it.
+- **`reply.probe_clearance(&craft, distance, radius)`** (command 29): does a half disc of
+  `radius` (up to 64) standing across the track at `distance` fit (track at least `2r` wide, no
+  geometry between its centre and rim)? `Clearance{fits, ahead}` answers at the next call. Send it
+  each tick you need a fresh answer (e.g. while the craft holds your pickup) and gate the fire on
+  the last answer.
+- All three are hashed (simulation), one of each per craft per tick.
 
 ## Events between mods: `emit` and `Event::Mod`
 
@@ -247,6 +404,8 @@ art, so set a self-lit part's `Col` after the bake.
 2. In the mod's `guest/`: `cargo test` (native, through `oag_ext::test::Race`; no wasm toolchain).
 3. `guest/build.sh` builds the release wasm and copies it to `ext/<name>.wasm`. **Commit the
    built wasm**: a player never builds. Rebuild and recommit after any SDK or ABI change.
+   From an engine checkout, `just check-guests` runs every guest's tests and says which
+   committed modules are no longer what their guest builds (`--strict` fails on one).
 4. From an engine checkout (this repo is its submodule at `assets/mods/examples`):
    `just play` builds with the `extensions` feature and finds the examples. Mods run by
    default; `OAG_NO_EXTENSIONS=1 just play` builds without. `OAG_MODS=<dir list>` replaces the whole search path.
@@ -290,7 +449,7 @@ screen keep the disc's picture. Engine `docs/tools/mods.md`, "Texture packs".
 `fx/<name>.toml` with `toml-schema = { location = ".../v1/effect.tosd", version = "1.0.0" }`,
 `axis = "rear" | "up"` and up to 64 `[[emitter]]` tables (`duration`, `interval`,
 `per-emission`, `lifetime`, `speed`, `spread`, `drag`, `gravity`, `live-cap`, `blend`, `size`,
-`alpha`, `colour`, `texture`). Plays at the craft's nozzle (hull back end). A texture is a
+`alpha`, `colour`, `texture`, `shader`). Plays at the craft's nozzle (hull back end). A texture is a
 PNG of the mod or a disc texture by name (`{ entry = "...", name = "..." }`). A broken file
 draws nothing and is named in the load report. Format: engine `docs/formats/mod-effect.md`.
 
@@ -357,3 +516,23 @@ untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
 Any change to the ABI (`oag-ext-abi`), the SDK (`oag-ext`), `oag-mod.toml`, the effect,
 track or string formats, or how a mod is built, tested or run must update this file in the
 same change. The engine's `CLAUDE.md` says the same.
+
+## A mod's own settings reach the guest: `Observation::option`
+
+A `choice` row on a mod page whose `setting` is `mod.<id>.<key>` and whose `values` are literal
+(`menu.toml`) is read by the guest as `obs.option(n)`: the index of the player's pick in that row's
+`values`, `n` the row's place among the mod's own choice rows in file order (first 4 rows). Nothing
+saved takes the row's `default`; a value the list lacks is 0. A row declares `scope = "sim"` (the
+default) or `scope = "view"`. **`sim`**: the pick reaches the simulation tick and is part of the race's
+identity (state hash, replay, LAN and lobby fingerprint as `id@version#row=pick`, and the host's or
+lobby's pick online), so two machines on different picks are refused. **`view`** (a view quality, a
+tint): the simulation call always reads the row's `default`, only a second outputs-only call reads this
+device's pick, and it is no part of the identity. In that second call only the drawn commands
+(`fire_effect`, `fire_mod_effect`, `screen_fill`, `fov_offset`, `draw_beam`, `set_shader_param`,
+`portal_view`, the `hud_*` and `pickup_look` ones) count; everything else, the state you write and a
+trap included, is dropped, so a view pick cannot steer a command that acts on the race. Do not
+read a `view` row to decide anything the rules need. Docs: `hooks.md`, "Picks: sim and view". In `oag_ext::test::Race`
+use `.with_options([..])`. A row needs its `string_id` and English text in `strings/english.toml`.
+`oag.slipstream` (official mods) is the example: QUALITY low/medium/high picks `portal_view`'s update
+(none, `Once`, `Continuous`) and tells its shader through `set_shader_param`.
+

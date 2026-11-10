@@ -30,8 +30,13 @@ module = "ext/energy_turbo.wasm"
 [effects]
 discharge = "fx/discharge.toml"
 
-# The look of the pickup this mod hands out: the title's own Turbo icon on a translucent red
+# The mod's own icon, a vector drawing: the engine rasterises it at load, and again when the
+# window changes size, at the pixels it is drawn at. A .png goes here the same way.
+[icons]
+energy = "icons/energy.svg"
+
+# The look of the pickup this mod hands out: the icon above on a translucent red
 # backdrop. The title's fade-in, overshoot, size pulse and fade-out play on it.
 [pickup]
-icon = { title = "turbo" }
+icon = { mod = "energy" }
 colour = { rgba = "E0202080" }

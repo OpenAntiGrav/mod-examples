@@ -1,0 +1,33 @@
+# Window: a round window standing on the road ahead of a person's craft, showing the road much
+# further on. The example of `portal-view`: the engine draws the scene through a portal pair
+# into the texture fx/window.wgsl reads. Drawn only, never hashed; it does nothing to the race.
+# Logic is in guest/src/lib.rs; ext/window.wasm is `guest/build.sh`'s output, committed.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
+
+[mod]
+id = "oag.window"
+name = "Window"
+version = "1.0.0"
+authors = ["The OpenAntiGrav contributors"]
+license = "MIT OR Apache-2.0"
+description = "A round window on the road ahead shows the road further on, every few seconds. A look and nothing more: an example of a secondary view of the race."
+repository = "https://github.com/OpenAntiGrav/mod-examples"
+titles = ["wipeout-pulse", "wipeout-pure", "wipeout-hd", "wipeout-omega-collection", "wipeout-2048"]
+default-enabled = false
+
+[extension]
+simulation = true
+api = 1
+memory_pages = 2
+# Per grid slot: entrance and exit progress and the tick it was put up (guest `Windows`).
+state_bytes = 96
+
+[extension.rules]
+module = "ext/window.wasm"
+
+[shaders]
+window = "fx/window.wgsl"
+
+[effects]
+window = "fx/window.toml"
