@@ -84,7 +84,8 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
   carries the properties of the spline paths it drives, so `route(r).prop(prop!("pit"))` finds
   the route through a path tagged `mod_pit`.
 - `Craft` (a view): `slot()`, `is_person()`, `fire_held()`, `is_racing()`, `is_shielded()`, `in_transit()`,
-  `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `pickup()`,
+  `lap()`, `laps_target()`, `shield()`, `shield_max()`, `speed_kmh()`, `speed()` (track units a second, what
+  distances along the circuit are in; over `TICKS_PER_SECOND` it is units a tick), `pickup()`,
   `progress() -> Option<f32>` (units along the lap, negative on the grid, `None` before its first
   fix; last tick's), `place()` (1-based, as the HUD shows), `aim_at(slot) -> Aim` (where that
   craft sits in this craft's own frame: `ahead()`, `across()`, `above()` in world units quantised
@@ -106,7 +107,11 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
 - `title!("wipeout-hd")`: compile-time key of a title slug, for `Observation::title()` (a per-title portal colour, say). `Race::with_title` sets it in the native harness.
 - `prop!("name")`: compile-time key (FNV-1a 32) for a track property; `entity.prop(key) -> Option<f32>`.
 - `Line`: fixed-size text buffer with `time(ticks)` and `number(n)`, no allocator.
-- `oag_ext::test::Race<E>`: native test harness (`with_craft`, `with_course(length, slot, progress, place)`, `with_track`, `event`, `tick() -> Vec<Command>`, `state()`), feature `test` as a dev-dependency.
+- `oag_ext::lap`: `ahead(progress, units, length)` (a place on the lap `units` on, taken round the line, in
+  `0..length`) and `gap(from, to, length)` (how far on `to` is the short way round, negative once past it). Use
+  them for every sum or difference of two progresses: the start line is between them as often as not.
+- `oag_ext::test::Race<E>`: native test harness (`with_craft`, `with_course(length, slot, progress, place)`,
+  `set_progress(slot, progress)` to fly a craft on between two ticks, `with_track`, `event`, `tick() -> Vec<Command>`, `state()`), feature `test` as a dev-dependency.
 
 Minimal complete guest (Wall Penalty, trimmed):
 
@@ -397,6 +402,8 @@ art, so set a self-lit part's `Col` after the bake.
 2. In the mod's `guest/`: `cargo test` (native, through `oag_ext::test::Race`; no wasm toolchain).
 3. `guest/build.sh` builds the release wasm and copies it to `ext/<name>.wasm`. **Commit the
    built wasm**: a player never builds. Rebuild and recommit after any SDK or ABI change.
+   From an engine checkout, `just check-guests` runs every guest's tests and says which
+   committed modules are no longer what their guest builds (`--strict` fails on one).
 4. From an engine checkout (this repo is its submodule at `assets/mods/examples`):
    `just play` builds with the `extensions` feature and finds the examples. Mods run by
    default; `OAG_NO_EXTENSIONS=1 just play` builds without. `OAG_MODS=<dir list>` replaces the whole search path.
