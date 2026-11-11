@@ -233,14 +233,21 @@ player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane wit
 - **`reply.raise_warning(&craft, WarningIcon)`** (command 37): lights the title's incoming-weapon warning on that
   craft's person's HUD, the one a rocket fired behind them raises: the icon's group (background and icon) for 2.0 s,
   blinking at 4 Hz. `WarningIcon::{Rocket, Missile, Quake, Cannon, Plasma, LeachBeam, Repulser, Shuriken}` are the
-  rear slot (a threat behind), `Mine` and `Bomb` the forward slot (a threat ahead); the icon fixes the group, and
-  there is no icon of your own (open). **Send it once, on the tick of the cause, never every tick**: a raise restarts
+  rear slot (a threat behind), `Mine` and `Bomb` the forward slot (a threat ahead); the icon fixes the group.
+  **`reply.raise_mod_warning(&craft, WarningSide::{Rear, Forward}, "name")`** is the same with an icon of your own:
+  `name` is a key of your `[icons]` (a PNG or SVG; an SVG is rasterised at the warning slot's pixels, so prefer one
+  with a tight `viewBox`), you choose the group, and the host draws that group's backdrop and fits the art, aspect
+  kept, to the box of the title's rear rocket / forward mine icon (the rear box is squarish; the forward one is the
+  mine's wide, short row of dots, so author wide art for it). A name your `[icons]` does not declare faults the
+  module, naming it (`Refused::Range` for one over 48 bytes, `Refused::HudItems` when the string pool is full); art
+  the host could not read draws no warning and the load report says so. **Send it once, on the tick of the cause, never every tick**: a raise restarts
   the timer and a timer restarted every tick is never lit. Drawn only where the original draws these warnings:
   Pulse (PSP and PS2), one view and one person, in Arcade, Tournament, Eliminator and Head-to-Head, for the
   craft the person flies; anything else (another craft, title, mode, split screen, network seat) drops it, with
-  no fault. `Refused::Full` is its only refusal. Output only. `oag.slipstream` raises `Repulser` for a person a
-  craft goes through the portal behind and lands ahead of (`warn_overtaken`); test it with
-  `Command::RaiseWarning` in a native `oag_ext::test::Race`.
+  no fault. `Refused::Full` is the title icon's only refusal. Output only. `oag.slipstream` raises its own
+  `portal-warning` glyph (`icons/portal-warning.svg`) on the rear group for a person a craft goes through the portal
+  behind and lands ahead of (`warn_overtaken`); test it with `Command::RaiseWarning { warning: Warning::Mod { .. } }`
+  in a native `oag_ext::test::Race` (`oag_ext::{Warning, WarningSide, ModIcon}`).
 
 ## View outputs: `screen_fill`, `fov_offset`, `fire_mod_effect_ahead`, `draw_beam`
 
