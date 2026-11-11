@@ -216,7 +216,7 @@ under `assets/mods/` always builds against the SDK in that tree.
 
 | Hashed (simulation; both sides must agree) | Output (drawn or heard, never hashed) |
 | --- | --- |
-| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`, `transit`, `scale_speed`, `probe_clearance` (its pending answer); the state blob; the fault flag and tick | `play_cue`, `play_mod_sound`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
+| `emit` (the queue it feeds), `scale_thrust` (0 to 2), `shield_delta`, `give_pickup`, `clear_pickup`, `pickup_roll`, `scale_pad` (0 to 2, race-wide), `scale_slot_pads` (0 to 2), `give_shield`, `hold_shield`, `clear_shield`, `prefer_route`, `transit`, `scale_speed`, `probe_clearance` (its pending answer); the state blob; the fault flag and tick | `play_cue`, `play_mod_sound`, `raise_warning`, `fire_effect` / `fire_mod_effect` (together at most 16 a tick), `pickup_look`, `hud_tint`, `hud_shake`, `hud_bar_extra`, `hud_text`, `hud_string`, `hud_icon`, `hud_mod_icon`, `set_weather`, `set_sun`, `grade_sky` |
 
 An output must not feed back into the state: a HUD that reads the simulation is fine, a
 rule that depends on what was drawn is not possible. HUD elements: `Speed`, `Thrust`,
@@ -227,6 +227,20 @@ and icons sit at one of nine `Anchor`s via `HudPlace`, at most 48 bytes a string
 the driver can drive it; the host still throws the coin. Re-send it every tick it should hold.
 It moves a driver only (an AI craft, or a person's Autopilot); the AI drives the route with the
 player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane with it.
+
+## Incoming warning: `raise_warning`
+
+- **`reply.raise_warning(&craft, WarningIcon)`** (command 37): lights the title's incoming-weapon warning on that
+  craft's person's HUD, the one a rocket fired behind them raises: the icon's group (background and icon) for 2.0 s,
+  blinking at 4 Hz. `WarningIcon::{Rocket, Missile, Quake, Cannon, Plasma, LeachBeam, Repulser, Shuriken}` are the
+  rear slot (a threat behind), `Mine` and `Bomb` the forward slot (a threat ahead); the icon fixes the group, and
+  there is no icon of your own (open). **Send it once, on the tick of the cause, never every tick**: a raise restarts
+  the timer and a timer restarted every tick is never lit. Drawn only where the original draws these warnings:
+  Pulse (PSP and PS2), one view and one person, in Arcade, Tournament, Eliminator and Head-to-Head, for the
+  craft the person flies; anything else (another craft, title, mode, split screen, network seat) drops it, with
+  no fault. `Refused::Full` is its only refusal. Output only. `oag.slipstream` raises `Repulser` for a person a
+  craft goes through the portal behind and lands ahead of (`warn_overtaken`); test it with
+  `Command::RaiseWarning` in a native `oag_ext::test::Race`.
 
 ## View outputs: `screen_fill`, `fov_offset`, `fire_mod_effect_ahead`, `draw_beam`
 
@@ -529,7 +543,7 @@ lobby's pick online), so two machines on different picks are refused. **`view`**
 tint): the simulation call always reads the row's `default`, only a second outputs-only call reads this
 device's pick, and it is no part of the identity. In that second call only the drawn commands
 (`fire_effect`, `fire_mod_effect`, `screen_fill`, `fov_offset`, `draw_beam`, `set_shader_param`,
-`portal_view`, the `hud_*` and `pickup_look` ones) count; everything else, the state you write and a
+`portal_view`, `raise_warning`, the `hud_*` and `pickup_look` ones) count; everything else, the state you write and a
 trap included, is dropped, so a view pick cannot steer a command that acts on the race. Do not
 read a `view` row to decide anything the rules need. Docs: `hooks.md`, "Picks: sim and view". In `oag_ext::test::Race`
 use `.with_options([..])`. A row needs its `string_id` and English text in `strings/english.toml`.
