@@ -25,7 +25,7 @@ One folder per mod, each with `oag-mod.toml` at its root. Examples to copy:
 Starts with `toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }`.
 `[mod]`: `id` (lowercase letters, digits, `.`, `-`, `_`), `name`, `version` (semver),
 `authors`, `license` (SPDX) or `license-file`, `description`, optional `repository`,
-`homepage`, `keywords`, `titles` (slugs: `wipeout-pulse`, `wipeout-pure`, `wipeout-hd`,
+`homepage`, `keywords`, `titles` (a mod whose `titles` leave out the running title is not loaded or offered on it; a texture pack's are filled from its `[games]` serials when absent; slugs: `wipeout-pulse`, `wipeout-pure`, `wipeout-hd`,
 `wipeout-omega-collection`, `wipeout-2048`; empty means any), `oag` (semver requirement),
 `default-enabled` (bool, default `true`; `false` ships the mod off until the player turns it on
 on the MODS page, stored as `[mods] enabled = [id]` in the settings file).
@@ -458,7 +458,7 @@ A PPSSPP pack needs no manifest: the engine recognises a folder or zip with `tex
 at its root (or a folder holding `textures.zip`) as a mod `ppsspp.<name>` that starts off; a
 player turns it on on the MODS page. Write an `oag-mod.toml` with `[texture-pack]` only to give
 it a name, release and licence (`oag-mod init-pack <folder>` writes a starting one, with
-`default-enabled = false`; `just fetch-texture-packs` already does for the packs it fetches, and never
+`default-enabled = false` and `titles` from the pack's `[games]` serials; `just fetch-texture-packs` already does for the packs it fetches, and never
 rewrites an existing one). It replaces a PSP disc's `.vex` textures (hulls, tracks), whole-image
 `.mip` textures, the race HUD's sprite sheet and the fonts the HUD draws with by PPSSPP's key, at
 the picture's own size (a PNG or a PPSSPP `.zim`; a font picture must be a whole multiple of the
