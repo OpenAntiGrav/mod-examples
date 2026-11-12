@@ -1,0 +1,3 @@
+# The word for the example campaign's own medal tier (`[[medal-tier]]` in campaigns/night-run.toml).
+[strings]
+NIGHT_RUN_PLATINUM = { text = "PLATINUM", human = false }

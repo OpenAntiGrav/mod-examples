@@ -10,6 +10,33 @@
 
 toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/campaign.tosd", version = "1.0.0" }
 
+# The medals this campaign awards, best first. Leave the list out and the title's own gold,
+# silver and bronze apply. Gold, silver and bronze keep the title's words and trophies; a tier
+# of your own (platinum here) shows its `string_id` word and its colour, and the title's gold
+# trophy and jingle stand in for it. A target names its tier by the `gold`, `silver`, `bronze`
+# keys or, for any other, an `extra` row. A requirement may name any of them (`medal =
+# "platinum"`), and a better tier counts as the one it beats.
+[[medal-tier]]
+name = "platinum"
+points = 4
+colour = "#9fe3ff"
+string_id = "NIGHT_RUN_PLATINUM"
+
+[[medal-tier]]
+name = "gold"
+points = 3
+colour = "#faeb38"
+
+[[medal-tier]]
+name = "silver"
+points = 2
+colour = "#dae3e4"
+
+[[medal-tier]]
+name = "bronze"
+points = 1
+colour = "#df942f"
+
 [campaign]
 id = "night-run"
 name = "NIGHT RUN"
@@ -39,7 +66,7 @@ class = "venom"
 laps = 3
 unlock = { open = true }
 # Seconds for a timed mode; absent rungs use these.
-medals = { gold = 150.0, silver = 165.0, bronze = 180.0 }
+medals = { gold = 150.0, silver = 165.0, bronze = 180.0, extra = [{ tier = "platinum", target = 138.0 }] }
 
 # Opens once the warm-up has any medal. The craft is preset, so Team Selection
 # is skipped, and the opponents' teams are named, pole first.
@@ -75,7 +102,7 @@ mode = "speed_lap"
 track = "04_Track"
 class = "venom"
 # The fastest lap, in seconds.
-medals = { gold = 45.0, silver = 50.0, bronze = 55.0 }
+medals = { gold = 45.0, silver = 50.0, bronze = 55.0, extra = [{ tier = "platinum", target = 42.0 }] }
 
 # Head to head against our own driver, flying the pilot this mod carries in
 # pilots/rival.toml. It opens on a silver or better at the gate run.
@@ -165,7 +192,7 @@ track = "02_Track"
 class = "flash"
 unlock = { requires = [{ event = "tour" }] }
 # A kill count: more is better.
-medals = { gold = 10, silver = 6, bronze = 3 }
+medals = { gold = 10, silver = 6, bronze = 3, extra = [{ tier = "platinum", target = 14 }] }
 
 # A pilot can also be written out in place, with the pilot file's keys.
 [grid.event.field]
