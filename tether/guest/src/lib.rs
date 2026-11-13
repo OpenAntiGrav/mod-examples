@@ -26,11 +26,11 @@ const HALF_WIDTH: f32 = 2.0;
 /// Where a new lock's ring stands.
 const RING_AHEAD: f32 = 200.0;
 const BLUE: Rgba = Rgba::new(0x20, 0xC0, 0xFF, 0xFF);
-/// `[effects]`, by place in name order.
-const LOCK_EFFECT: u16 = 0;
-/// `[shaders]`, by place in name order.
-const SHADER_BEAM: u16 = 0;
-const SHADER_VIGNETTE: u16 = 2;
+/// The key of `[effects]` the lock plays.
+const LOCK_EFFECT: &str = "lock";
+/// The keys of `[shaders]` the guest draws through.
+const SHADER_BEAM: &str = "beam";
+const SHADER_VIGNETTE: &str = "vignette";
 /// fx/beam.wgsl's `speed`, its first scalar.
 const PARAM_SPEED: u8 = 0;
 

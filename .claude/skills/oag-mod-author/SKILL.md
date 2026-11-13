@@ -7,7 +7,7 @@ description: Write, change or debug an OpenAntiGrav mod - an oag-mod.toml, a Web
 
 This is a guide, not the spec. The engine repository owns the truth (paths at the
 end); when this file and the engine disagree, the engine wins and this file is stale.
-State checked against engine branch `wasm-extensions`, ABI 1 revision 3, 2026-10-30.
+State checked against engine branch `wasm-extensions`, ABI 1 revision 5, 2026-11-13.
 
 ## Layout of this repository
 
@@ -36,13 +36,13 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 
 | Table | Purpose |
 | --- | --- |
-| `[extension]` | `simulation = true` (required with a module), `api = 1`, `memory_pages` (1 to 256, default 16; 2 holds the SDK with a 16 KiB stack), `state_bytes` (at most 1,024; must equal the guest's `oag_state_len`), `drives_ai_pickup` (bool, default `false`: the engine raises `pickup-fire` for an AI craft holding your pickup wherever it would fire a Turbo; `true` raises nothing for the AI and the module decides from the observation, then `clear_pickup`s) |
+| `[extension]` | `simulation = true` (required with a module), `api = 1`, `memory_pages` (1 to 256, default 16; 2 holds the SDK with a 16 KiB stack), `state_bytes` (optional: leave it out and the module's own `oag_state_len`, which `export!` writes from the `blob!`, is the length; if you write one it must equal it; at most 1,024), `drives_ai_pickup` (bool, default `false`: the engine raises `pickup-fire` for an AI craft holding your pickup wherever it would fire a Turbo; `true` raises nothing for the AI and the module decides from the observation, then `clear_pickup`s) |
 | `[extension.rules]` | `module = "ext/x.wasm"`: runs in every race the mod is on for, every craft, AI too |
 | `[extension.track]` | `module = ...` and `track = "tracks/x.track.toml"`: runs only in a race of that track file, never a disc circuit |
 | `[channels]` | `publishes = ["<mod id>/<name>"]`, `listens = [...]`: the event channels the mod's modules send on and hear (see below). Names are `<mod id>/<name>` (lowercase letters, digits, `-`, `_`; the id may also have `.`); a published one starts with this mod's own id. Malformed, repeated or foreign-namespace names refuse the mod at load, by name. The MODS page shows SENDS and HEARS, and **NO ONE SENDS** when a listened channel is sent by no mod (or track file) that is on |
-| `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its index in **name order** |
-| `[shaders]` | `name = "fx/name.wgsl"` (`.wgsl` or `.wesl`): your own fragment shaders, see "Shaders". A guest names one by its index in **name order**, an effect's `shader` key by its name |
-| `[sounds]` | `name = "sounds/name.wav"`: your own sounds, 16-bit PCM WAV (mono or stereo, any rate, at most 4 MiB), never a game's audio. A guest plays one with `play_mod_sound` by its index in **name order**; a file that fails to decode plays nothing and the load report names it |
+| `[effects]` | `name = "fx/name.toml"`: parametric particle effects. A guest fires one by its key (`reply.fire_mod_effect(&craft, "sputter")`); a key the manifest lacks faults the module, naming it |
+| `[shaders]` | `name = "fx/name.wgsl"` (`.wgsl` or `.wesl`): your own fragment shaders, see "Shaders". A guest names one by its key (`reply.screen_fill_shaded(&craft, rgba, "wormhole")`), an effect's `shader` key the same; a key the manifest lacks faults the module, naming it |
+| `[sounds]` | `name = "sounds/name.wav"`: your own sounds, 16-bit PCM WAV (mono or stereo, any rate, at most 4 MiB), never a game's audio. A guest plays one with `play_mod_sound` by its key; a file that fails to decode plays nothing and the load report names it |
 | `[icons]` | `name = "path.png"` or `"path.svg"`: icons for `hud_mod_icon` and `[pickup]` (missing or unreadable draws nothing, load report names the file and the error). An **SVG** is rasterised at load, off the render thread, at the exact pixel size the pickup slot has on screen, and again (still off the render thread) when the window size or Safe Area changes, so a hard edge stays one texel wide at every size; `hud_mod_icon` draws it at that slot size where the HUD has a pickup slot, else at its declared size; its `width`/`height` (or viewBox) set the aspect and, on Pure, the size in layout units. No `<text>` (a text node draws nothing: convert it to paths) and no `<image>` (never read). A PNG is drawn as authored and scaled, so pixel art stays a PNG. See `energy-turbo/icons/energy.svg` |
 | `[campaign-medals]` | The art Pulse's Cell Selection fills a medal hexagon with, in place of the colour swatch (Grid Selection's tier hexagons keep the swatch): `source = { title = "wipeout-hd" }` (that title's own disc ships the atlas, read at run time; swatches stay without the disc) or `{ mod = "<key of [icons]>" }` (your own PNG, cut into equal rows: `tiers` rows per block, three blocks easy/medium/hard from the top when `per-difficulty`; drawn on the campaigns your mod carries only, `example-campaign/ui/medals.png`); `per-difficulty = true` (a block of three tiers per difficulty, a cell draws the block of the difficulty its medal was earned on, the middle block when none is saved, the rule HD's Cell Selection uses); `tiers = ["gold", "silver", "bronze"]` names the tier of each atlas row of a `mod` atlas, top to bottom, by the names a campaign's tiers carry (`gold`, `silver`, `bronze` or a `[[medal-tier]]` of its own, each once; a campaign tier no row names draws its colour as a swatch). Pair it with `[mod] needs-titles = ["wipeout-hd"]` so the MODS page says which disc is missing. A frame is scaled to the hexagon's rect (flat-topped). See `official/hd-medals` |
 | `[texture-pack]` | `format = "ppsspp"` (the only one), optional `ini` (default `textures.ini`) and `serials`: the mod is a PPSSPP texture pack drawn in place of the disc's textures, on a PSP source only (Pulse PS2 is the same title but not a PSP, so the pack is not offered or drawn there, whatever its `titles`). It starts **off** (`[mod] default-enabled`, absent means false here and true for every other mod). A folder or zip with a `textures.ini` at its root and no `oag-mod.toml` is recognised without one; `oag-mod init-pack <folder>` writes that manifest out |
@@ -108,7 +108,7 @@ Rust, `no_std`, no `alloc`, no `unsafe`. Implement `Extension`, declare the stat
   call's `probe_clearance`). At most 32 per call; the `Mod` events come first.
 - `Reply`: one method per command, `Result<(), Refused>`. `Refused` is `Full` (96 commands),
   `Repeated` (a second per-craft thrust, shield, pad, route, transit, scale-speed or probe command), `Range`, `HudItems`
-  (more than 32 text/icon items per craft per tick, or the string pool full), `Pickup`,
+  (more than 32 text/icon items per craft per tick), `Pool` (the reply's string pool is full: a name sent twice in a tick is stored once), `Pickup`,
   `PickupTint` (`hud_tint` of the pickup), `Emits` (more than 4 `emit`s this tick).
   Handle or `let _ =` it on purpose; the host would fault on what the SDK refuses.
 - `Slot` and `Craft`: a command naming a slot takes a `&Craft`, so an empty slot cannot be named.
@@ -199,12 +199,12 @@ under `assets/mods/` always builds against the SDK in that tree.
 - **Refused at load, by name** (the mod is left out, or its manifest does not parse and the MODS
   page shows why): a wrong `api`, `memory_pages` outside 1 to 256, `state_bytes` over 1,024,
   an `[extension]` with neither `[extension.rules]` nor `[extension.track]`, an `[icons]` name
-  over 48 bytes, a `state_bytes` that differs from the guest's `oag_state_len`, and an export
+  over 48 bytes, a `state_bytes` written in the manifest that differs from the guest's `oag_state_len`, and an export
   (`tick`, `oag_io`, `oag_track`, `oag_state_len`, `oag_abi`) that is not `() -> i32`.
 - **Event caps.** A tick delivers at most 16 `mod` events from modules and 8 from the track's
   triggers, each class apart; past a cap the later in sorted order (channel, slot, sender,
   value) are dropped, counted and logged by the host, never a fault.
-- **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (3 now; ABI 1 is edited in place before release, so rebuild every module against the engine you run: the event record is 16 bytes now). A module built for
+- **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (5 now; ABI 1 is edited in place before release, so rebuild every module against the engine you run: the event record is 16 bytes now). A module built for
   another revision is refused by name: rebuild against the engine you run.
 - A pickup of the mod's own (`Pickup::Ours`): every mod that declares a `[pickup]` has a kind of its
   own (up to 32 a race, in mod id order; the engine runs at most 4 simulation mods), so two mods
@@ -249,7 +249,7 @@ player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane wit
   with a tight `viewBox`), you choose the group, and the host draws that group's backdrop and fits the art, aspect
   kept, to the box of the title's rear rocket / forward mine icon (the rear box is squarish; the forward one is the
   mine's wide, short row of dots, so author wide art for it). A name your `[icons]` does not declare faults the
-  module, naming it (`Refused::Range` for one over 48 bytes, `Refused::HudItems` when the string pool is full); art
+  module, naming it (`Refused::Range` for one over 48 bytes, `Refused::Pool` when the string pool is full); art
   the host could not read draws no warning and the load report says so. **Send it once, on the tick of the cause, never every tick**: a raise restarts
   the timer and a timer restarted every tick is never lit. Drawn only where the original draws these warnings:
   Pulse (PSP and PS2), one view and one person, in Arcade, Tournament, Eliminator and Head-to-Head, for the
@@ -259,7 +259,7 @@ player's physics. `checkpoint-circuit/` sends low AI craft down its pit lane wit
   behind and lands ahead of (`warn_overtaken`); test it with `Command::RaiseWarning { warning: Warning::Mod { .. } }`
   in a native `oag_ext::test::Race` (`oag_ext::{Warning, WarningSide, ModIcon}`).
 
-## View outputs: `screen_fill`, `fov_offset`, `fire_mod_effect_ahead`, `draw_beam`
+## View outputs: `screen_fill`, `fov_offset`, `fire_mod_effect_ahead`, `stop_mod_effect`, `draw_beam`
 
 Outputs only (drawn, never hashed); re-send each tick they should hold. A slot with no craft is a
 fault (the SDK takes a `&Craft`).
@@ -270,20 +270,25 @@ fault (the SDK takes a `&Craft`).
   `MAX_FOV_OFFSET_DEG` (30) either way, before the player's FOV setting's aspect fit. `Refused::Range` out of it.
   Drawn between two ticks' values on a display faster than 60 Hz, so send a ramp, not a jump: a step of 20 degrees
   on one tick is a visible snap (`oag.slipstream`'s `Flight::widening` is one curve from the approach to after the exit).
-- **`reply.fire_mod_effect_ahead(&craft, index, Distance)`** (command 32): your `[effects]` entry `index` (name order) played
+- **`reply.fire_mod_effect_ahead(&craft, "portal", Distance)`** (command 32): your `[effects]` entry `portal` (a key, not a place) played
   at the middle of the road `distance` ahead (`Distance::Units(60.0)`, `Seconds`, `Lap`, `Progress`, `Trigger`), standing
   in the world for the effect's lifetime (a PNG `texture`, one emission, `speed = [0, 0]`, `lifetime = [150, 0]`): a
   camera-facing sprite, e.g. a half disc. The sprite is centred on that point (road level, lifted a little), so put a half disc's flat edge on the PNG's middle row with the disc in the upper half, or the road hides it; on a pale track use `alpha-over` in a deep colour (additive washes out). Counts toward the 16 effects a tick. Not a mesh (a shader may draw it, see "Shaders"); nothing draws if the distance
   does not resolve. Test with `oag_ext::test::Race`; the engine side is `tests::extension_view`.
+- **`reply.stop_mod_effect(&craft, "portal")`** (command 38): ends, at once and particles and all, the surfaces of your
+  `[effects]` entry `portal` that you placed for that craft with `fire_mod_effect_ahead` before this tick (a portal
+  that closes, a marker picked up). None standing is not a fault. Without it a surface stands for its TOML's `lifetime`.
 
-- **`reply.screen_fill_shaded(&craft, Rgba, shader)`**: the fill through your shader, `Rgba` its `input.colour`, alpha over
+- **`reply.screen_fill_shaded(&craft, Rgba, "wormhole")`**: the fill through your shader (a key of `[shaders]`), `Rgba` its `input.colour`, alpha over
   or added as its header says.
-- **`reply.draw_beam(&craft, to, Rgba, half_width, Option<shader>)`** (command 34): a ribbon facing the camera from the
+- **`reply.draw_beam(&craft, to, Rgba, half_width, Option<&str>)`** (the shader's key) (command 34): a ribbon facing the camera from the
   craft to the craft in `to`, this tick; `None` is the flat colour. Nothing draws while either is out of the world. At most
   16 a tick (`Refused::Beams`), `half_width` in `(0, 32]`, never to itself (`Refused::Range`). `Aim::in_cone` picks a
   target; add `shield_delta` and it is half a Leach. Example: `tether/`.
-- **`reply.set_shader_param(&craft, shader, index, value)`** (command 35): scalar `index` of a shader in that craft's view,
-  this tick; unset it is the header's default.
+- **`reply.set_shader_param(&craft, "wormhole", index, value)`** (command 35): scalar `index` of a shader in that craft's view.
+  It **holds** until you send it again, until the fill through that shader stops (the first tick you send none), or until
+  your module faults: send a constant once, and only what moves each tick; unset it is the header's default. One command
+  a scalar: four scalars do not fit one 12-byte record.
 
 ## Shaders
 
@@ -304,6 +309,7 @@ fn mod_fragment(input: ModInput) -> vec4<f32> {
     // input.between (-1..0: how far short of this tick the frame is drawn)
     // craft_frame() (the view's own craft in eye space: right, up, back, place),
     // eye_ray(input.screen_uv) (that texel's ray in eye space, z -1)
+    // view_aspect() (the view's width over its height: a circle on screen_uv needs uv.x * view_aspect())
     return input.colour * mod_texture(input.uv + vec2<f32>(input.time * param_speed(), 0.0));
 }
 ```
@@ -355,20 +361,24 @@ camera sees through a portal pair at two lap progresses (track units, from `Craf
   so fade it out below that. Cut your own geometry round the craft with `craft_frame()` and
   `eye_ray(input.screen_uv)`: `oag.slipstream`'s `fx/wormhole.wgsl` is a tunnel done that way.
 - **A scalar that moves** is stepped a tick at a time: read it as `param_x() + rate * input.between` so a frame
-  between two ticks draws the value between them.
+  between two ticks draws the value between them. **At a cut** (a craft put elsewhere on this tick: a `transit`'s
+  entry or exit) `between` still runs -1..0 for that tick's frames while the camera does not blend, so a shader that
+  reads a count of ticks is a tick behind the picture for them. Skip the count that would show the far side early (a
+  count that never takes the value `LAST + 1` on the frame of the cut), as `oag.slipstream`'s `Flight::Through` does.
 - A view at the top of a loop is upside down, because the road is. Check where your exit lands. Example: `window/`.
 
 ## Sounds: `play_mod_sound`
 
-Heard, never hashed. **`reply.play_mod_sound(&craft, index, SoundMode::Once | Loop | Stop)`** (command 33): your
-`[sounds]` entry `index` (name order) from that craft, placed like a title cue on the craft (the player's own craft
+Heard, never hashed. **`reply.play_mod_sound(&craft, "portal-open", SoundMode::Once | Loop | Stop)`** (command 33): your
+`[sounds]` entry `portal-open` (a key) from that craft, placed like a title cue on the craft (the player's own craft
 dry, the others positioned, HRTF or rear cue as the player chose; through the master trim and limiter, so keep
 peaks well under full scale). `Once` plays each time it is sent. `Loop` starts a loop that follows the craft and is
 left alone if already running, so re-sending it every tick is harmless; `Stop` ends it. The host ends a loop when
 the module faults, the craft's slot empties or the race finishes. Not counted toward the 16 effects. Name sounds
-by what they are (`portal-open`) and keep the names stable: a sound's index is its place in name order, so adding
-one in the middle moves the others (pin each index in a named const and test it against the manifest, as
-`assets/mods/official/slipstream/guest/src/tests.rs` does). `Race` in `oag_ext::test` returns the commands; the
+by what they are (`portal-open`) and keep the keys stable: a guest names a sound, an effect or a shader by its key, so
+adding a file never renumbers the others, and a key the manifest lacks faults the module on its first send, naming
+it and listing what the manifest declares. Name them in a `const` and test the consts against the manifest's keys, as
+`assets/mods/official/slipstream/guest/src/tests.rs` does (`every_key_the_guest_names_is_in_the_manifest`). `Race` in `oag_ext::test` returns the commands; the
 engine side is `tests::extension_sounds`, the format `docs/formats/mod-sound.md`.
 
 ## Moving a craft along the circuit: `transit`, `scale_speed`, `probe_clearance`

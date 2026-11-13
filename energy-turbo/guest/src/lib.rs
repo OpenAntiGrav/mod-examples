@@ -45,8 +45,8 @@ const AI_REST: u16 = 120;
 const ROLL_EVERY: u8 = 2;
 /// Ticks between two discharges at the nozzle.
 const SPARK_EVERY: u8 = 2;
-/// The mod's own discharge: `fx/discharge.toml`, the first of its `[effects]` by name.
-const DISCHARGE: u16 = 0;
+/// The mod's own discharge: `fx/discharge.toml`, the key `discharge` of its `[effects]`.
+const DISCHARGE: &str = "discharge";
 /// The energy bar's shake while the turbo drains, in HUD pixels. Chosen.
 const SHAKE: f32 = 2.0;
 const RED: Rgba = Rgba::new(0xE0, 0x20, 0x20, 0xFF);

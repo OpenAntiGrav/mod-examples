@@ -19,8 +19,8 @@ const CURSE_TICKS: u16 = 90;
 const CURSE_FACTOR: f32 = 0.25;
 /// Ticks between two puffs of smoke at a cursed craft's nozzle.
 const PUFF_EVERY: u16 = 6;
-/// The mod's own smoke: `fx/sputter.toml`, the first of its `[effects]` by name.
-const SPUTTER: u16 = 0;
+/// The mod's own smoke: `fx/sputter.toml`, the key `sputter` of its `[effects]`.
+const SPUTTER: &str = "sputter";
 /// Grid slots this mod tracks: one countdown each.
 const SLOTS: usize = 8;
 
@@ -92,7 +92,7 @@ mod tests {
             },
             Command::FireModEffect {
                 slot: one,
-                index: SPUTTER,
+                effect: oag_ext::ModName::new(SPUTTER).unwrap(),
             },
         ];
         for tick in 0..CURSE_TICKS {

@@ -26,8 +26,8 @@ const AHEAD: f32 = 420.0;
 const LOOKS_ON: f32 = 640.0;
 /// How far the surface reaches from its centre: half `fx/window.toml`'s size.
 const RADIUS: u8 = 22;
-/// `[effects]`, by place in name order.
-const WINDOW_EFFECT: u16 = 0;
+/// The key of `[effects]` the window plays.
+const WINDOW_EFFECT: &str = "window";
 
 oag_ext::blob! {
     /// One window per slot: where it stands and looks out, on the lap, and when it was put up.

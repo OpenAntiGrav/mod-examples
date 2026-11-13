@@ -20,7 +20,7 @@ simulation = true
 api = 1
 memory_pages = 2
 # 8 grid slots of 12 bytes each (guest `Memory`).
-state_bytes = 96
+# The state's length is the guest's, which the module exports.
 
 [extension.rules]
 module = "ext/energy_turbo.wasm"

@@ -21,13 +21,13 @@ simulation = true
 api = 1
 memory_pages = 2
 # 8 grid slots of 1 byte (guest `Lock`).
-state_bytes = 8
+# The state's length is the guest's, which the module exports.
 
 [extension.rules]
 module = "ext/tether.wasm"
 
-# The mod's own shaders, named by their place in this table's name order from a module
-# (guest `SHADER_*`) and by name from an effect file (fx/lock.toml).
+# The mod's own shaders, named by key from a module (guest `SHADER_*`) and from an effect file
+# (fx/lock.toml).
 [shaders]
 beam = "fx/beam.wgsl"
 ring = "fx/ring.wgsl"

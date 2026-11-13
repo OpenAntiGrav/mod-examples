@@ -21,7 +21,7 @@ simulation = true
 api = 1
 memory_pages = 2
 # Per grid slot: entrance and exit progress and the tick it was put up (guest `Windows`).
-state_bytes = 96
+# The state's length is the guest's, which the module exports.
 
 [extension.rules]
 module = "ext/window.wasm"

@@ -22,8 +22,8 @@ titles = ["wipeout-pulse"]
 simulation = true
 api = 1
 memory_pages = 2
-# Each slot's clock, next checkpoint and pit flag: 16 x (2 + 1 + 1) bytes.
-state_bytes = 64
+# The state's length is the guest's (each slot's clock, next checkpoint and pit flag), which the
+# module exports.
 
 [extension.track]
 module = "ext/checkpoint_circuit.wasm"

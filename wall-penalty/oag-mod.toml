@@ -23,8 +23,7 @@ titles = ["wipeout-pulse"]
 simulation = true
 api = 1
 memory_pages = 2
-# One u16 countdown per grid slot.
-state_bytes = 16
+# One u16 countdown per grid slot; the state's length is the guest's, which the module exports.
 
 [extension.rules]
 module = "ext/wall_penalty.wasm"
