@@ -438,8 +438,9 @@ art, so set a self-lit part's `Col` after the bake.
 2. In the mod's `guest/`: `cargo test` (native, through `oag_ext::test::Race`; no wasm toolchain).
 3. `guest/build.sh` builds the release wasm and copies it to `ext/<name>.wasm`. **Commit the
    built wasm**: a player never builds. Rebuild and recommit after any SDK or ABI change.
-   From an engine checkout, `just check-guests` runs every guest's tests and says which
-   committed modules are no longer what their guest builds (`--strict` fails on one).
+   From an engine checkout, `just check-guests --strict` (also in the engine's `just` gate and CI)
+   runs every guest's tests and fails on a committed module that is not what its guest builds;
+   `just rebuild-guests` rebuilds every module in one command after an SDK, ABI or toolchain change.
 4. From an engine checkout (this repo is its submodule at `assets/mods/examples`):
    `just play` builds with the `extensions` feature and finds the examples. Mods run by
    default; `OAG_NO_EXTENSIONS=1 just play` builds without. `OAG_MODS=<dir list>` replaces the whole search path.
