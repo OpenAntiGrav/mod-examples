@@ -17,3 +17,15 @@ description = "A small campaign on the disc's own circuits: hidden cells, a pres
 repository = "https://github.com/OpenAntiGrav/mod-examples"
 # Pulse only: both its tracks borrow Pulse 03_Track's art.
 titles = ["wipeout-pulse"]
+
+# NIGHT RUN's own medal art, drawn on its Cell Selection in place of the title's colour swatches:
+# a 64 x 768 px atlas of four rows (platinum, gold, silver, bronze) in each of three difficulty
+# blocks (easy, medium, hard from the top; the pips count the difficulty). Only this mod's own
+# campaigns draw it; the disc's campaign keeps the title's swatches.
+[icons]
+medals = "ui/medals.png"
+
+[campaign-medals]
+source = { mod = "medals" }
+per-difficulty = true
+tiers = ["platinum", "gold", "silver", "bronze"]
