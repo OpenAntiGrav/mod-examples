@@ -308,6 +308,9 @@ fn mod_fragment(input: ModInput) -> vec4<f32> {
 }
 ```
 
+- Colour out is gamma-authored 0..1: stay in it and a shader looks alike on every title. A channel above 1 is an
+  HDR highlight on Omega's and 2048's float scene (it reaches the bloom and the tonemap, and survives
+  `engine_texture`); on Pulse's 8-bit target and HD's encoded scene it is white. Below 0 is 0 everywhere.
 - Also: `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: the view `portal_view` asks the engine for
   (below), gamma-authored and opaque; transparent black and unbound for a view without one, so **always draw a fallback**.
 - Drawn on: a particle (an emitter's `shader = "<name>"`, no `texture` beside it), a fill, a beam.
