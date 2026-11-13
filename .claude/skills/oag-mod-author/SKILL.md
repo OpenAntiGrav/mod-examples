@@ -377,7 +377,8 @@ left alone if already running, so re-sending it every tick is harmless; `Stop` e
 the module faults, the craft's slot empties or the race finishes. Not counted toward the 16 effects. Name sounds
 by what they are (`portal-open`) and keep the keys stable: a guest names a sound, an effect or a shader by its key, so
 adding a file never renumbers the others, and a key the manifest lacks faults the module on its first send, naming
-it and listing what the manifest declares. Name them in a `const` and test the consts against the manifest's keys, as
+it and listing what the manifest declares (a key sent only from the view call is dropped with that call's outputs
+instead of faulting). Name them in a `const` and test the consts against the manifest's keys, as
 `assets/mods/official/slipstream/guest/src/tests.rs` does (`every_key_the_guest_names_is_in_the_manifest`). `Race` in `oag_ext::test` returns the commands; the
 engine side is `tests::extension_sounds`, the format `docs/formats/mod-sound.md`.
 
