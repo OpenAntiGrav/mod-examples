@@ -73,7 +73,7 @@ progression = "ramp"    # flat (default: every cell at the base) | ramp (first c
 - "Later" is the tier's position in the file, then the event's position within the tier, every event counting.
   A ramp with no `difficulty` starts at the bottom. There is no per-tier step in v1.0.
 - **Medal tiers.** A campaign may declare its own medals, best first, in `[[medal-tier]]` (`name`, `points`,
-  `colour = "#RRGGBB"`, optional `string_id` for the tier's word from the mod's `strings/english.toml`); without the list it
+  `colour = "#RRGGBB"`, optional `string_id` for the tier's word from the mod's `strings/<language>.toml`: the active language over `english.toml`); without the list it
   is the title's gold 3, silver 2, bronze 1. Targets keep the `gold`/`silver`/`bronze` keys and name any other tier in
   `extra = [{ tier = "platinum", target = 70.0 }]` (in `medals` and in each rung); `requires` takes `medal = "<tier>"`,
   and a better tier counts as the lesser one it beats. Records store the tier by name, so renaming a tier forgets it.
