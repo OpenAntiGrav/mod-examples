@@ -317,7 +317,7 @@ fn mod_fragment(input: ModInput) -> vec4<f32> {
 - Colour out is gamma-authored 0..1: stay in it and a shader looks alike on every title. A channel above 1 is an
   HDR highlight on Omega's and 2048's float scene (it reaches the bloom and the tonemap, and survives
   `engine_texture`); on Pulse's 8-bit target and HD's encoded scene it is white. Below 0 is 0 everywhere.
-- Also: `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: the view `portal_view` asks the engine for
+- Also: `camera_cut()` (this tick cut the camera, below), `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: the view `portal_view` asks the engine for
   (below), gamma-authored and opaque; transparent black and unbound for a view without one, so **always draw a fallback**.
 - Drawn on: a particle (an emitter's `shader = "<name>"`, no `texture` beside it), a fill, a beam.
 - `smoothstep(lo, hi, x)` keeps `lo < hi`: WGSL defines the reversed form, but Vulkan and Metal leave it undefined.
@@ -364,9 +364,10 @@ camera sees through a portal pair at two lap progresses (track units, from `Craf
   `eye_ray(input.screen_uv)`: `oag.slipstream`'s `fx/wormhole.wgsl` is a tunnel done that way.
 - **A scalar that moves** is stepped a tick at a time: read it as `param_x() + rate * input.between` so a frame
   between two ticks draws the value between them. **At a cut** (a craft put elsewhere on this tick: a `transit`'s
-  entry or exit) `between` still runs -1..0 for that tick's frames while the camera does not blend, so a shader that
-  reads a count of ticks is a tick behind the picture for them. Skip the count that would show the far side early (a
-  count that never takes the value `LAST + 1` on the frame of the cut), as `oag.slipstream`'s `Flight::Through` does.
+  exit, not its entrance, where the camera flies on; a respawn) `between` still runs -1..0 for that tick's frames while
+  the camera does not blend, so a shader that reads a count of ticks is a tick behind the picture for them.
+  `camera_cut()` is true on those frames (whatever the draw alpha): take `0.0` for `between` when it holds, e.g.
+  `let b = select(input.between, 0.0, camera_cut());`.
 - A view at the top of a loop is upside down, because the road is. Check where your exit lands. Example: `window/`.
 
 ## Sounds: `play_mod_sound`
