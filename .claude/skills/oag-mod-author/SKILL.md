@@ -320,6 +320,8 @@ fn mod_fragment(input: ModInput) -> vec4<f32> {
 - Also: `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: the view `portal_view` asks the engine for
   (below), gamma-authored and opaque; transparent black and unbound for a view without one, so **always draw a fallback**.
 - Drawn on: a particle (an emitter's `shader = "<name>"`, no `texture` beside it), a fill, a beam.
+- `smoothstep(lo, hi, x)` keeps `lo < hi`: WGSL defines the reversed form, but Vulkan and Metal leave it undefined.
+  A falling edge is `1.0 - smoothstep(lo, hi, x)`. Never `lo == hi`.
 - **No loop of any kind** (`for`, `while`, `loop`): one that never ended would hang the GPU, so all are refused. Write
   the steps out or call a helper several times. Helpers that call helpers multiply, so a function's work is counted
   through its calls (its expressions and statements plus each callee's, once per call) and one over 32,768 is refused

@@ -8,7 +8,7 @@
 // refuses them, so the sum is written out. `uv.x` runs along the beam, `uv.y` across it.
 fn pulse(along: f32, phase: f32) -> f32 {
     let at = fract(along - phase);
-    return smoothstep(0.0, 0.1, at) * smoothstep(0.35, 0.1, at);
+    return smoothstep(0.0, 0.1, at) * (1.0 - smoothstep(0.1, 0.35, at));
 }
 
 fn mod_fragment(input: ModInput) -> vec4<f32> {
