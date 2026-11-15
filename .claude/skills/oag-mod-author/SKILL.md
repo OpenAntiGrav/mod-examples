@@ -7,7 +7,7 @@ description: Write, change or debug an OpenAntiGrav mod - an oag-mod.toml, a Web
 
 This is a guide, not the spec. The engine repository owns the truth (paths at the
 end); when this file and the engine disagree, the engine wins and this file is stale.
-State checked against engine branch `wasm-extensions`, ABI 1 revision 5, 2026-11-13.
+State checked against engine branch `wasm-extensions`, ABI 1 revision 6, 2026-11-15.
 
 ## Layout of this repository
 
@@ -158,6 +158,19 @@ impl Extension for WallPenalty {
 oag_ext::export!(WallPenalty);
 ```
 
+**Choosing its races.** Override `fn wants_race(race: &RaceInfo) -> bool` (default `true`) when
+the mod belongs to some races only. It is asked once at race load, on a fresh instance, before
+anything of the mod is loaded for that race; `false` means the mod does not exist in that race:
+no `tick`, no state, no pickup, no HUD, sound, effect or shader of its own, and the race is not
+marked modded on its account. `RaceInfo` has `title` (`title!("wipeout-hd")`), `class`
+(`channel_key("venom")`, 0 for none), `mode` (`RaceMode::{TimeTrial, SpeedLap, Zone, SingleRace,
+Eliminator, Tournament, Head2Head, Detonator}`), `weapons`, `campaign`, `people`, `crafts` and
+`options` (your `sim` picks). Decide from those alone: it sees no state, craft or track. A
+trap, an exhausted fuel budget or an answer other than run or skip leaves the mod out of the
+race by name. Slipstream: `race.weapons && matches!(race.mode, RaceMode::SingleRace |
+RaceMode::Tournament)`. Test it with `oag_ext::test::wants_race::<MyMod>(&info)`. Without
+the override the mod runs in every race it is on for, as it always did.
+
 `Cargo.toml` (own workspace, `[workspace]` empty table): `crate-type = ["cdylib"]`,
 `oag-ext` as a dependency and, with `features = ["test"]`, a dev-dependency; release
 profile `opt-level = "s"`, `lto = true`, `panic = "abort"`, `codegen-units = 1`,
@@ -200,11 +213,11 @@ under `assets/mods/` always builds against the SDK in that tree.
   page shows why): a wrong `api`, `memory_pages` outside 1 to 256, `state_bytes` over 1,024,
   an `[extension]` with neither `[extension.rules]` nor `[extension.track]`, an `[icons]` name
   over 48 bytes, a `state_bytes` written in the manifest that differs from the guest's `oag_state_len`, and an export
-  (`tick`, `oag_io`, `oag_track`, `oag_state_len`, `oag_abi`) that is not `() -> i32`.
+  (`tick`, `oag_io`, `oag_track`, `oag_state_len`, `oag_wants_race`, `oag_abi`) that is not `() -> i32`.
 - **Event caps.** A tick delivers at most 16 `mod` events from modules and 8 from the track's
   triggers, each class apart; past a cap the later in sorted order (channel, slot, sender,
   value) are dropped, counted and logged by the host, never a fault.
-- **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (5 now; ABI 1 is edited in place before release, so rebuild every module against the engine you run: the event record is 16 bytes now). A module built for
+- **Layout revision.** `oag_abi()` returns `(1 << 8) | REVISION` (6 now; ABI 1 is edited in place before release, so rebuild every module against the engine you run: the event record is 16 bytes now). A module built for
   another revision is refused by name: rebuild against the engine you run.
 - A pickup of the mod's own (`Pickup::Ours`): every mod that declares a `[pickup]` has a kind of its
   own (up to 32 a race, in mod id order; the engine runs at most 4 simulation mods), so two mods
