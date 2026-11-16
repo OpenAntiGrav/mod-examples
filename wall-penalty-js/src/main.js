@@ -9,8 +9,8 @@
 const ACTIVE_AT = 20;
 const EVENT_COUNT_AT = 24;
 const EVENTS_AT = 32;
-const EVENT_LEN = 8;
-const STATE_AT = 288;
+const EVENT_LEN = 16;
+const STATE_AT = 544;
 const COMMAND_LEN = 12;
 const EVENT_WALL_CONTACT = 1;
 const COMMAND_SCALE_THRUST = 1;
@@ -20,18 +20,26 @@ const OWN_FLAG = 0x8000;
 const CURSE_TICKS = 90;
 const CURSE_FACTOR = 0.25;
 const PUFF_EVERY = 6;
-const SPUTTER = 0;
+// The mod's own effect, `sputter` in oag-mod.toml's [effects]: the argument of a fire-effect
+// command is OWN_FLAG over its name's offset in the pool.
+const SPUTTER_NAME = "sputter";
+const SPUTTER_AT = 0;
 const SLOTS = 8;
 
 // Only the head of the buffer is read: the header, the 32 events and this mod's 16-byte state.
 const io = new Uint8Array(STATE_AT + SLOTS * 2);
 const view = new DataView(io.buffer);
-// What is written back, in one write: the state (16 bytes, the host's blob), then the reply
-// (the command count and the commands, sized for every slot's two commands). The shim cuts
-// the stream at the state's length. Written whole each tick, so nothing is allocated.
+// What is written back, in one write of three segments the shim cuts the stream into: the
+// state (16 bytes, the host's blob), the reply (the command count and the commands, sized
+// for every slot's two commands) and the reply's string pool, which names the mod's own
+// effect: one entry, a length byte and the name, at pool offset 0.
+// Written whole each tick, so nothing is allocated.
 const STATE_BYTES = SLOTS * 2;
-const out = new Uint8Array(STATE_BYTES + 4 + COMMAND_LEN * 2 * SLOTS);
+const REPLY_BYTES = 4 + COMMAND_LEN * 2 * SLOTS;
+const out = new Uint8Array(STATE_BYTES + REPLY_BYTES + 1 + SPUTTER_NAME.length);
 const outView = new DataView(out.buffer);
+out[STATE_BYTES + REPLY_BYTES] = SPUTTER_NAME.length;
+for (let i = 0; i < SPUTTER_NAME.length; i++) out[STATE_BYTES + REPLY_BYTES + 1 + i] = SPUTTER_NAME.charCodeAt(i);
 
 function jsTick() {
   Javy.IO.readSync(0, io);
@@ -60,8 +68,8 @@ function jsTick() {
       if (left % PUFF_EVERY === 0) {
         out[at] = COMMAND_FIRE_EFFECT;
         out[at + 1] = slot;
-        out[at + 2] = SPUTTER;
-        out[at + 3] = OWN_FLAG >> 8;
+        out[at + 2] = SPUTTER_AT & 255;
+        out[at + 3] = (OWN_FLAG | SPUTTER_AT) >> 8;
         at += COMMAND_LEN;
       }
     }

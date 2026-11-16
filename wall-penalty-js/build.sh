@@ -5,6 +5,7 @@
 # uses SIMD, which the host's deterministic subset refuses): JAVY=/path/to/javy, and
 # binaryen's `wasm-dis`/`wasm-as` on PATH. See ../README.md in this folder.
 set -euo pipefail
+export PYTHONDONTWRITEBYTECODE=1
 here="$(cd "$(dirname "$0")" && pwd)"
 javy="${JAVY:?set JAVY to a Javy 9.1.0 CLI built with its plugin without simd128}"
 work="$(mktemp -d)"
@@ -14,7 +15,7 @@ trap 'rm -rf "$work"' EXIT
   -C source=omitted -C deterministic=y -J javy-stream-io=y -o "$work/javy.wasm"
 wasm-dis "$work/javy.wasm" -o "$work/javy.wat"
 abi_word="$(python3 -I "$here/tools/abi_word.py")"
-python3 -I "$here/tools/shim.py" "$work/javy.wat" "$work/shimmed.wat" "$abi_word" 16
+python3 -I "$here/tools/shim.py" "$work/javy.wat" "$work/shimmed.wat" "$abi_word" 16 196 8
 mkdir -p "$here/ext"
 wasm-as --all-features "$work/shimmed.wat" -o "$here/ext/wall_penalty_js.wasm"
 ls -l "$here/ext/wall_penalty_js.wasm"
