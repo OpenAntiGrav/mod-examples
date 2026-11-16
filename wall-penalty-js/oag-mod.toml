@@ -15,6 +15,8 @@ license = "MIT OR Apache-2.0"
 description = "Touch a wall and your engine is cursed: a quarter of its thrust for a second and a half. Written in JavaScript."
 repository = "https://github.com/OpenAntiGrav/mod-examples"
 titles = ["wipeout-pulse"]
+# Off until a player turns it on: it does what oag.wall-penalty does, at half the fuel budget.
+default-enabled = false
 
 [extension]
 simulation = true
