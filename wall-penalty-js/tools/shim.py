@@ -4,20 +4,24 @@ Javy's output imports nine WASI functions, exports kebab-case WIT functions with
 result, and has no `oag_*` exports. The host refuses any import and wants `oag_abi`,
 `oag_io` and `tick() -> u32`. This rewrites the module's text form (wasm-dis) so that:
 
-- the nine WASI imports become functions inside the module: standard input serves the
-  host's I/O buffer once; standard output is one byte stream in three segments: its first
-  STATE_BYTES bytes the state blob, the next REPLY_BYTES the reply (the count and the
-  commands) and the last POOL_BYTES the reply's string pool (the host's layout leaves gaps
-  between the regions, which a script need not write). The stream is appended by byte, so a write
-  the runtime splits (standard output is line buffered: a 0x0A byte ends a write) still
-  lands whole. The rest do nothing;
+- the nine WASI imports become functions inside the module. Standard input is the
+  observation, compacted: the active mask (u32), the event count (u32, at most MAX_EVENTS),
+  the state blob, then each event's kind and slot (2 bytes); the script reads the whole
+  stream in one call, into a buffer of `observation_bytes`. Reading the ABI's 16-byte
+  events and unused tail whole costs fuel by the byte, and the shim holds what the script
+  asks for. Standard output is one byte stream in three segments: its first STATE_BYTES
+  bytes the state blob, the next POOL_BYTES the reply's string pool, the rest the reply (the
+  count and the commands, up to REPLY_BYTES). The host's layout leaves gaps between the
+  regions, which a script need not write, and a script writes only the reply it uses. The
+  stream is appended by byte, so a write the runtime splits (standard output is line
+  buffered: a 0x0A byte ends a write) still lands whole. The rest do nothing;
 - `oag_abi`, `oag_io` (a buffer taken once from the module's own allocator, so it lies
   where the runtime will not write) and `tick` (the script's `js-tick`, then 0) are
   exported, and `oag_state_len` too.
 
 Everything stays in the guest: no host capability is involved.
 
-usage: shim.py in.wat out.wat ABI_WORD STATE_BYTES REPLY_BYTES POOL_BYTES
+usage: shim.py in.wat out.wat ABI_WORD STATE_BYTES POOL_BYTES REPLY_BYTES
 """
 import pathlib
 import re
@@ -33,7 +37,9 @@ POOL_AT = LAYOUT["POOL_AT"]
 IO_LEN = LAYOUT["IO_LEN"]
 POOL_LEN = LAYOUT["POOL_LEN"]
 source, target, abi_word = sys.argv[1], sys.argv[2], sys.argv[3]
-state_bytes, reply_bytes, pool_bytes = (int(value) for value in sys.argv[4:7])
+state_bytes, pool_bytes, reply_bytes = (int(value) for value in sys.argv[4:7])
+MAX_EVENTS = LAYOUT["MAX_EVENTS"]
+OBSERVATION_BYTES = 8 + state_bytes + 2 * MAX_EVENTS
 if pool_bytes > POOL_LEN or STATE_AT + state_bytes > REPLY_AT or REPLY_AT + reply_bytes > POOL_AT:
     sys.exit("a segment is longer than the ABI region it lands in")
 
@@ -83,16 +89,42 @@ define("fd_seek", "(i32.const %d)" % EBADF)
 define("proc_exit", "(unreachable)")
 define(
     "fd_read",
-    """(local $n i32)
+    """(local $dst i32)
+(local $io i32)
+(local $count i32)
+(local $i i32)
 (if (i32.ne (local.get 0) (i32.const 0)) (then (return (i32.const %(ebadf)d))))
 (if (global.get $oag_read) (then (i32.store (local.get 3) (i32.const 0)) (return (i32.const 0))))
 (global.set $oag_read (i32.const 1))
-(local.set $n (i32.load offset=4 (local.get 1)))
-(if (i32.gt_u (local.get $n) (i32.const %(io_len)d)) (then (local.set $n (i32.const %(io_len)d))))
-(memory.copy (i32.load (local.get 1)) (call $oag_io) (local.get $n))
-(i32.store (local.get 3) (local.get $n))
+(if (i32.lt_u (i32.load offset=4 (local.get 1)) (i32.const %(wanted)d)) (then (return (i32.const 28))))
+(local.set $dst (i32.load (local.get 1)))
+(local.set $io (call $oag_io))
+(local.set $count (i32.load (i32.add (local.get $io) (i32.const %(event_count_at)d))))
+(if (i32.gt_u (local.get $count) (i32.const %(max_events)d)) (then (local.set $count (i32.const %(max_events)d))))
+(i32.store (local.get $dst) (i32.load (i32.add (local.get $io) (i32.const %(active_at)d))))
+(i32.store offset=4 (local.get $dst) (local.get $count))
+(memory.copy (i32.add (local.get $dst) (i32.const 8)) (i32.add (local.get $io) (i32.const %(state_at)d)) (i32.const %(state)d))
+(loop $event
+ (if (i32.lt_u (local.get $i) (local.get $count))
+  (then
+   (i32.store16
+    (i32.add (local.get $dst) (i32.add (i32.const %(events_out)d) (i32.shl (local.get $i) (i32.const 1))))
+    (i32.load16_u (i32.add (local.get $io) (i32.add (i32.const %(events_at)d) (i32.shl (local.get $i) (i32.const 4))))))
+   (local.set $i (i32.add (local.get $i) (i32.const 1)))
+   (br $event))))
+(i32.store (local.get 3) (i32.add (i32.const %(events_out)d) (i32.shl (local.get $count) (i32.const 1))))
 (i32.const 0)"""
-    % {"ebadf": EBADF, "io_len": IO_LEN},
+    % {
+        "ebadf": EBADF,
+        "wanted": OBSERVATION_BYTES,
+        "event_count_at": LAYOUT["EVENT_COUNT_AT"],
+        "max_events": MAX_EVENTS,
+        "active_at": LAYOUT["ACTIVE_AT"],
+        "state_at": STATE_AT,
+        "state": state_bytes,
+        "events_out": 8 + state_bytes,
+        "events_at": LAYOUT["EVENTS_AT"],
+    },
 )
 define(
     "fd_write",
@@ -122,12 +154,12 @@ define(
           (local.set $dst (i32.add (i32.const %(state_at)d) (local.get $cursor)))
           (local.set $room (i32.sub (i32.const %(state)d) (local.get $cursor))))
          (else
-          (if (i32.lt_u (local.get $cursor) (i32.const %(reply_end)d))
+          (if (i32.lt_u (local.get $cursor) (i32.const %(pool_end)d))
            (then
-            (local.set $dst (i32.add (i32.const %(reply_at)d) (i32.sub (local.get $cursor) (i32.const %(state)d))))
-            (local.set $room (i32.sub (i32.const %(reply_end)d) (local.get $cursor))))
+            (local.set $dst (i32.add (i32.const %(pool_at)d) (i32.sub (local.get $cursor) (i32.const %(state)d))))
+            (local.set $room (i32.sub (i32.const %(pool_end)d) (local.get $cursor))))
            (else
-            (local.set $dst (i32.add (i32.const %(pool_at)d) (i32.sub (local.get $cursor) (i32.const %(reply_end)d))))
+            (local.set $dst (i32.add (i32.const %(reply_at)d) (i32.sub (local.get $cursor) (i32.const %(pool_end)d))))
             (local.set $room (i32.sub (i32.const %(span)d) (local.get $cursor)))))))
         (if (i32.gt_u (local.get $room) (local.get $len)) (then (local.set $room (local.get $len))))
         (memory.copy (i32.add (call $oag_io) (local.get $dst)) (local.get $from) (local.get $room))
@@ -145,8 +177,8 @@ define(
         "state_at": STATE_AT,
         "reply_at": REPLY_AT,
         "pool_at": POOL_AT,
-        "reply_end": state_bytes + reply_bytes,
-        "span": state_bytes + reply_bytes + pool_bytes,
+        "pool_end": state_bytes + pool_bytes,
+        "span": state_bytes + pool_bytes + reply_bytes,
     },
 )
 

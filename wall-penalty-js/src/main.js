@@ -3,78 +3,67 @@
 // rules as ../wall-penalty/guest/src/lib.rs, byte for byte on the wire.
 //
 // Javy's QuickJS has no way to see the host's I/O buffer, so the build's shim
-// (tools/shim.py) serves it as standard input and takes the reply from standard output:
-// one read of the observation, one write of the state and the reply.
-
-const ACTIVE_AT = 20;
-const EVENT_COUNT_AT = 24;
-const EVENTS_AT = 32;
-const EVENT_LEN = 16;
-const STATE_AT = 544;
-const COMMAND_LEN = 12;
-const EVENT_WALL_CONTACT = 1;
-const COMMAND_SCALE_THRUST = 1;
-const COMMAND_FIRE_EFFECT = 6;
-const OWN_FLAG = 0x8000;
-
-const CURSE_TICKS = 90;
-const CURSE_FACTOR = 0.25;
-const PUFF_EVERY = 6;
-// The mod's own effect, `sputter` in oag-mod.toml's [effects]: the argument of a fire-effect
-// command is OWN_FLAG over its name's offset in the pool.
-const SPUTTER_NAME = "sputter";
-const SPUTTER_AT = 0;
-const SLOTS = 8;
-
-// Only the head of the buffer is read: the header, the 32 events and this mod's 16-byte state.
-const io = new Uint8Array(STATE_AT + SLOTS * 2);
-const view = new DataView(io.buffer);
-// What is written back, in one write of three segments the shim cuts the stream into: the
-// state (16 bytes, the host's blob), the reply (the command count and the commands, sized
-// for every slot's two commands) and the reply's string pool, which names the mod's own
-// effect: one entry, a length byte and the name, at pool offset 0.
-// Written whole each tick, so nothing is allocated.
-const STATE_BYTES = SLOTS * 2;
-const REPLY_BYTES = 4 + COMMAND_LEN * 2 * SLOTS;
-const out = new Uint8Array(STATE_BYTES + REPLY_BYTES + 1 + SPUTTER_NAME.length);
-const outView = new DataView(out.buffer);
-out[STATE_BYTES + REPLY_BYTES] = SPUTTER_NAME.length;
-for (let i = 0; i < SPUTTER_NAME.length; i++) out[STATE_BYTES + REPLY_BYTES + 1 + i] = SPUTTER_NAME.charCodeAt(i);
+// (tools/shim.py) serves a compact observation as standard input and takes the reply from
+// standard output: one read, one write.
+//
+// The module runs on a fresh instance every tick, top level included, and a top-level
+// `const` costs about 1,400 fuel each time, so the numbers below are written in place. The
+// ABI's own numbers are named in `// abi NAME = n` lines (comments cost nothing), which
+// `just check-extensions` compares with the ABI crate. Every buffer starts zeroed, so only
+// the bytes that are not zero are written.
+//
+// abi COMMAND_LEN = 12
+// abi EVENT_WALL_CONTACT = 1
+// abi COMMAND_SCALE_THRUST = 1
+// abi COMMAND_FIRE_EFFECT = 6
+// abi OWN_FLAG = 0x8000
+//
+// What the shim serves (bytes): 0 the active mask (u32), 4 the event count (u32), 8 the
+// state (16: a u16 countdown per slot, 8 slots), 24 each event's kind and slot (2 bytes).
+const io = new Uint8Array(88);
+// What is written back, in one write the shim cuts into three segments: 0 the state, 16 the
+// reply's string pool (the length byte and the name "sputter", the mod's own effect, at pool
+// offset 0), 24 the reply (the command count, u32, then 12-byte commands: room for two per slot).
+const out = new Uint8Array(220);
+out.set([7, 115, 112, 117, 116, 116, 101, 114], 16);
 
 function jsTick() {
   Javy.IO.readSync(0, io);
-  const active = io[ACTIVE_AT] | (io[ACTIVE_AT + 1] << 8);
-  const events = io[EVENT_COUNT_AT];
+  const active = io[0] | (io[1] << 8);
+  const events = io[4];
   for (let i = 0; i < events; i++) {
-    const at = EVENTS_AT + i * EVENT_LEN;
-    if (io[at] === EVENT_WALL_CONTACT && io[at + 1] < SLOTS) {
-      io[STATE_AT + io[at + 1] * 2] = CURSE_TICKS;
-      io[STATE_AT + io[at + 1] * 2 + 1] = 0;
+    const at = 24 + i * 2;
+    if (io[at] === 1 && io[at + 1] < 8) {
+      // A curse: 90 ticks.
+      io[8 + io[at + 1] * 2] = 90;
+      io[9 + io[at + 1] * 2] = 0;
     }
   }
-  let at = STATE_BYTES + 4;
-  for (let slot = 0; slot < SLOTS; slot++) {
-    const index = STATE_AT + slot * 2;
+  let at = 28;
+  for (let slot = 0; slot < 8; slot++) {
+    const index = 8 + slot * 2;
     let left = io[index] | (io[index + 1] << 8);
     if (left === 0) continue;
     left -= 1;
     out[slot * 2] = left & 255;
     out[slot * 2 + 1] = left >> 8;
     if (active & (1 << slot)) {
-      out[at] = COMMAND_SCALE_THRUST;
+      // scale-thrust by 0.25: the f32 0x3E800000, little-endian, in the command's value field.
+      out[at] = 1;
       out[at + 1] = slot;
-      outView.setFloat32(at + 4, CURSE_FACTOR, true);
-      at += COMMAND_LEN;
-      if (left % PUFF_EVERY === 0) {
-        out[at] = COMMAND_FIRE_EFFECT;
+      out[at + 6] = 0x80;
+      out[at + 7] = 0x3e;
+      at += 12;
+      if (left % 6 === 0) {
+        // fire-effect, the mod's own (0x8000), the name at pool offset 0.
+        out[at] = 6;
         out[at + 1] = slot;
-        out[at + 2] = SPUTTER_AT & 255;
-        out[at + 3] = (OWN_FLAG | SPUTTER_AT) >> 8;
-        at += COMMAND_LEN;
+        out[at + 3] = 0x80;
+        at += 12;
       }
     }
   }
-  outView.setUint32(STATE_BYTES, (at - STATE_BYTES - 4) / COMMAND_LEN, true);
+  out[24] = (at - 28) / 12;
   Javy.IO.writeSync(1, out);
 }
 

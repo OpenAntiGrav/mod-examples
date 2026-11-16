@@ -15,7 +15,7 @@ trap 'rm -rf "$work"' EXIT
   -C source=omitted -C deterministic=y -J javy-stream-io=y -o "$work/javy.wasm"
 wasm-dis "$work/javy.wasm" -o "$work/javy.wat"
 abi_word="$(python3 -I "$here/tools/abi_word.py")"
-python3 -I "$here/tools/shim.py" "$work/javy.wat" "$work/shimmed.wat" "$abi_word" 16 196 8
+python3 -I "$here/tools/shim.py" "$work/javy.wat" "$work/shimmed.wat" "$abi_word" 16 8 196
 mkdir -p "$here/ext"
 wasm-as --all-features "$work/shimmed.wat" -o "$here/ext/wall_penalty_js.wasm"
 ls -l "$here/ext/wall_penalty_js.wasm"
