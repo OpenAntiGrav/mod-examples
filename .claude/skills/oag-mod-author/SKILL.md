@@ -510,26 +510,37 @@ screen keep the disc's picture. Engine `docs/tools/mods.md`, "Texture packs".
 
 Rust on `oag-ext` is the way to write a mod. `wall-penalty-js/` shows the only other route that
 meets the rules: JavaScript built with Javy (QuickJS in core wasm) behind a guest-side shim.
-Choose it only to see what it costs: **a JavaScript tick spends 155,000 to 228,000 of the 200,000
-fuel** (Rust Wall Penalty: about 500), so a mod doing more than a few hundred bytecode operations a
-tick faults out of fuel; the module is 1.37 MB against 627 bytes; the host spends about 1 s
-compiling it at race load.
+Choose it only to see what it costs: **the module is 1.37 MB against 3.9 KB for Rust Wall Penalty,
+the host spends about 2 s compiling it at race load, and a tick spends 111,000 of the 200,000
+fuel doing nothing** (188,000 in the worst case of Wall Penalty, every slot cursed and puffing;
+Rust: about 600), so a mod doing more than a few hundred bytecode operations a tick (about 350
+fuel each) faults out of fuel.
 
 - Build: `wall-penalty-js/build.sh` with `JAVY=<javy 9.1.0>` whose plugin was built **without**
   `+simd128` (stock Javy's output uses SIMD, which the host refuses), and binaryen's `wasm-dis`
   and `wasm-as` on PATH. The build is byte-reproducible; commit `ext/*.wasm` (LFS).
-- `src/main.js` exports `jsTick()`. It cannot see the I/O buffer: `Javy.IO.readSync(0, buf)`
-  reads the head of it, and **one** `Javy.IO.writeSync(1, buf)` writes the state blob (its first
-  `state_bytes`) then the reply (the command count and records). `tools/shim.py` turns Javy's nine
-  WASI imports into functions that do this, and exports `oag_abi`, `oag_io`, `oag_state_len` and
-  `tick`. No import remains.
+- `src/main.js` exports `jsTick()`. It cannot see the I/O buffer: one `Javy.IO.readSync(0, buf)`
+  gets a compact observation the shim builds (the active mask, the event count, the state blob,
+  each event's kind and slot) and **one** `Javy.IO.writeSync(1, buf)` writes three segments the
+  shim cuts into place: the state blob, the reply's string pool, the reply (the command count
+  and the records). `tools/shim.py` turns Javy's nine WASI imports into functions that do this,
+  takes every offset from the engine's `crates/ext-abi` (`tools/abi.py`), and exports `oag_abi`,
+  `oag_io`, `oag_state_len` and `tick`. No import remains.
+- **The whole script runs on a fresh instance every tick, top level included**, and QuickJS
+  charges for it: a top-level `const` costs about 1,400 fuel each tick, a `Uint8Array` about
+  5,000, a `charCodeAt` loop of seven steps 16,000. Write numbers in place, build no tables,
+  and name the ABI numbers in `// abi NAME = n` comment lines, which `just check-extensions`
+  compares with the ABI crate (a `const NAME = n;` line is checked too, and costs).
+- A string a command names (the mod's own effect) goes in the pool: a length byte and the name,
+  and the command's argument is `OWN_FLAG` (`0x8000`) or the pool offset.
 - No clock, no randomness (`Date.now` is 0, `Math.random` is the snapshot's), nothing between ticks.
 - TypeScript typings of the ABI: `types/oag-abi.d.ts`, generated from `crates/ext-abi` by the
   engine's `scripts/gen-ext-typings.py` (run it after an ABI change; `just check-extensions`
-  fails on a stale file or a script whose own `const NAME = n;` differs from the ABI).
+  fails on a stale file or a script whose own numbers differ from the ABI).
 - Prove it the way the Rust one is proved: `crates/modhost/tests/javascript_module.rs` (random
-  observations, same state and commands as `wall-penalty/`) and the `wall_penalty_ground_truth`
-  JavaScript tests (`--features extensions --run-ignored only`).
+  observations, same state and commands as `wall-penalty/`; `OAG_JS_DIFFERENTIAL_TICKS=20000`
+  for the long run; fuel of an empty, a cursed and the worst tick) and the
+  `wall_penalty_ground_truth` JavaScript tests (`--features extensions --run-ignored only`).
 
 ## Particle effects
 
