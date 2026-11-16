@@ -1,0 +1,30 @@
+# Wall Penalty in JavaScript: the same mod as ../wall-penalty, written in JavaScript and built
+# with Javy (QuickJS compiled to core wasm). A rules module like the Rust one, and the same
+# law: a craft that touches a wall keeps a quarter of its thrust for 1.5 s. It exists to show
+# what a JavaScript mod costs: see build.sh and README.md. Runs only in a build with the
+# `extensions` cargo feature.
+
+toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/mod.tosd", version = "1.0.0" }
+
+[mod]
+id = "oag.wall-penalty-js"
+name = "Wall Penalty (JavaScript)"
+version = "1.0.0"
+authors = ["The OpenAntiGrav contributors"]
+license = "MIT OR Apache-2.0"
+description = "Touch a wall and your engine is cursed: a quarter of its thrust for a second and a half. Written in JavaScript."
+repository = "https://github.com/OpenAntiGrav/mod-examples"
+titles = ["wipeout-pulse"]
+
+[extension]
+simulation = true
+api = 1
+memory_pages = 24
+# One u16 countdown per grid slot.
+state_bytes = 16
+
+[extension.rules]
+module = "ext/wall_penalty_js.wasm"
+
+[effects]
+sputter = "fx/sputter.toml"
