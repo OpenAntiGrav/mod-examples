@@ -529,7 +529,8 @@ untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
   `feature_image` (a PNG, drawn at the layout's `feature-image` box: 896x480 on HD),
   `feature_title`, `feature_heading`, `feature_text`. Naming any feature key makes the track the
   feature (a key left out draws blank, the title's random feature is not run). A layout names
-  what to draw (`draw = "image" | "text" | "label" | "corners" | "dots" | "clip"`) in a `grid`
+  what to draw (`draw = "image" | "text" | "label" | "corners" | "dots" | "clip" | "fill" | "meter"`; `fill` is a solid
+  rectangle from `at`, `size` and `colour`; `meter` is 2048's row of seven triangles filling with the load) in a `grid`
   of its own pixels, with `asset` and `source` role names the title resolves; an element it cannot
   resolve is skipped and named in the load report. Try it:
   `oag-game <disc> --loading-screen 0/1 --loading-step race --track-file x.track.toml --ticks 60 --screenshot out.png`.
