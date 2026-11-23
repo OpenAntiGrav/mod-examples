@@ -332,6 +332,7 @@ fn mod_fragment(input: ModInput) -> vec4<f32> {
   `engine_texture`); on Pulse's 8-bit target and HD's encoded scene it is white. Below 0 is 0 everywhere.
 - Also: `camera_cut()` (this tick cut the camera, below), `engine_texture(uv)`, `engine_texture_bound()`, `engine_uv(world)`: the view `portal_view` asks the engine for
   (below), gamma-authored and opaque; transparent black and unbound for a view without one, so **always draw a fallback**.
+  `engine_uv` of a point behind the picture's camera is far outside it and `engine_texture` reads it as transparent black.
 - Drawn on: a particle (an emitter's `shader = "<name>"`, no `texture` beside it), a fill, a beam.
 - `smoothstep(lo, hi, x)` keeps `lo < hi`: WGSL defines the reversed form, but Vulkan and Metal leave it undefined.
   A falling edge is `1.0 - smoothstep(lo, hi, x)`. Never `lo == hi`.
@@ -373,7 +374,9 @@ camera sees through a portal pair at two lap progresses (track units, from `Craf
   the crafts and, where its alpha is 0.5 or more, in place of the world: everything drawn after it is hidden there
   but the view's own craft, which is drawn in front of it even while it is out of the world in a transit (hull and
   flame shapes; no boost plume, particle exhaust or trail). Under 0.5 it is an ordinary fill over everything,
-  so fade it out below that. Cut your own geometry round the craft with `craft_frame()` and
+  so fade it out below that. **`mod_fragment` runs once per pixel of an ordinary draw and twice per pixel of a backdrop
+  fill** (the backdrop draw and the fringe draw each run it, then discard by alpha), so keep a backdrop shader cheap; its alpha is written as you
+  return it (colour is clamped, alpha is not), so keep it in 0..1. Cut your own geometry round the craft with `craft_frame()` and
   `eye_ray(input.screen_uv)`: `oag.slipstream`'s `fx/wormhole.wgsl` is a tunnel done that way.
 - **A scalar that moves** is stepped a tick at a time: read it as `param_x() + rate * input.between` so a frame
   between two ticks draws the value between them. **At a cut** (a craft put elsewhere on this tick: a `transit`'s
