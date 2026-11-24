@@ -534,7 +534,13 @@ untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
   only a reference and ships no pixels. To see the real pictures while authoring, run
   `just export-host-textures <your disc image> <your .track.toml or a circuit's .vex entry> <folder under data/>`
   and set the add-on preference **Host texture folder** to it: an import (or the panel's
-  **Link Host Textures**) links each host image to its PNG as an external file. The add-on
+  **Link Host Textures**) links each host image to its PNG as an external file. Every title
+  exports (the title is the disc image you pass; 2048 takes its extracted folder, not the
+  encrypted `.pkg`). On HD, 2048 and Omega a host `name` is the picture's path as the circuit's
+  materials spell it (`/data/environments/03_track/hd_textures/dds/ds_speedup_cs.gtf`; leading
+  separator, case and `\` against `/` do not matter, the extension is replaced by `.png`), not a
+  `.vex` Texture node's name; list a circuit's names by exporting it whole and reading the
+  folder. The add-on
   never keeps a host image packed (one you pack is unpacked within a second, and a save made with
   Automatically Pack on leaves it out), so no disc pixels reach your .blend or the mod; keep the exported
   folder out of the mod, too.
