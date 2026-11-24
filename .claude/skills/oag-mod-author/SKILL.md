@@ -525,6 +525,18 @@ install as an extension, Blender 4.2+). A scene object is exported only when tag
 `oag_kind` (`spline`, `floor`, `wall`, `start`, `speedup`, `weapon`, `trigger`, ...); an
 untagged rendering mesh is art. Export writes `name.track.toml` plus `name.glb`.
 
+- **Textures:** an image you author exports as an independent PNG beside the manifest, in
+  every case: a PNG on disk is copied as it is, a PNG packed in the .blend is written out, and
+  a generated, painted, JPG, TGA or EXR image is converted to an sRGB PNG (data images marked
+  Non-Color stay raw). Two images never share a file name (the second becomes `name-2.png`),
+  one image used twice is one row, and an image whose file is missing refuses the export by
+  name. A **host texture** (a disc texture named by entry and name, `Make Host Texture`) is
+  only a reference and ships no pixels. To see the real pictures while authoring, run
+  `just export-host-textures <your disc image> <your .track.toml or a circuit's .vex entry> <folder under data/>`
+  and set the add-on preference **Host texture folder** to it: an import (or the panel's
+  **Link Host Textures**) links each host image to its PNG as an external file. The add-on
+  never packs a host image, so no disc pixels reach your .blend or the mod; keep the exported
+  folder out of the mod, too.
 - **A loading screen of the track's own:** an optional `[loading]` table in the manifest (every
   key optional, files inside the track's folder, never `..` or absolute), each falling back on its
   own to the title's: `layout` (a screen-layout TOML with `screen = "loading"`, see engine
