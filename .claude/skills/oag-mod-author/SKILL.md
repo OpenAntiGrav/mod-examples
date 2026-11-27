@@ -30,7 +30,9 @@ Starts with `toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/
 disc the mod draws from: it loads without one and the MODS page says which is missing), `oag`
 (semver requirement),
 `default-enabled` (bool, default `true`; `false` ships the mod off until the player turns it on
-on the MODS page, stored as `[mods] enabled = [id]` in the settings file).
+on the MODS page, stored as `[mods] enabled = [id]` in the settings file),
+`network-races` (bool, default `true`; `false` keeps the mod's `fallback/` entries out of LAN and
+online races and out of the network fingerprint, see below).
 No licence still loads but is flagged. Check one with `just mods-check <path>`
 (engine checkout); `just mods-list` shows what the search finds.
 
@@ -51,7 +53,18 @@ No licence still loads but is flagged. Check one with `just mods-check <path>`
 Other files: `strings/<language>.toml` (`[strings]` rows `ID = { text = "...", human = false }`;
 `human = true` only when a person wrote or approved it; ship `english.toml`, it is the
 fallback), `menu.toml` (menu rows, closed set of existing pages and actions; a `[[page]]` with `[[page.entry]]` rows of the shipped menu's grammar adds a page of your own, tree id `<mod id>/<id>`, named by its short `id` in a `target` of your own rows; it must be reached by one of your rows, or the mod is refused naming the page; a mod's options go on a settings page, not the main menu: a top-level `settings = "<page id>"` names one of your pages, the SETTINGS row of your mod's detail page (MODS lists the mods; accept on yours opens it) opens it while your mod is on, and no row of yours needs to reach it (a `settings` naming no page of yours refuses the mod); a `choice` row's list may be a query table, `values_from = { query = "tracks_of", of = "<setting key>" }` (queries: `titles_available`, `tracks_of`, `teams_of`, `variants_of`, `speed_classes_union`, `ai_difficulties`, `custom_tracks`; `of` must be a choice row's `setting` on your own pages, empty means the booted title); `tracks_of`/`teams_of`/`variants_of` with an `of` list the title the `of` row's value names (use a `titles_available` or `craft_titles` row) and re-list when it changes; each takes one companion setting, also a choice row on your pages, that re-lists it too: `tracks_of` `craft_title = "<key>"` (custom tracks under CUSTOM checked against that craft title), `teams_of` `class = "<key>"` (only the teams authoring that class), `variants_of` `team = "<key>"` (that team's variants); a choice row may carry `default = "<value>"`, what it holds until your mod has saved a pick; a pick its list no longer offers is saved as the value the row shows, and dependent rows re-list down the chain; RACE REMIX in `OpenAntiGrav/official-mods` (`remix/menu.toml`) is the worked example of a two-title page; an `action = "launch_race"` row on such a page with `launch = { track_title = "mod.<id>.<key>", track = ..., craft_title, team, variant, mode, class, difficulty }` races the sources those settings name (a key is an engine setting like `race.mode` or `race.class`, or a `mod.<id>.<key>` of your own; a key left out is the booted title's; a `launch` on any other action, or an unknown input, refuses the mod; `[[entry]]` rows cannot carry `launch` yet); a row's `setting` on your page must be `mod.<your id>.<key>`, or the mod is refused; `item_page` (the engine's key for its MODS list, seen in the shipped menu) is not for a mod page and refuses the mod),
-`campaigns/*.toml`, `pilots/*.toml`, `tracks/*.track.toml` + `.glb`. A mod with a
+`campaigns/*.toml`, `pilots/*.toml`, `tracks/*.track.toml` + `.glb`, and
+`fallback/<title slug>/...`: asset files named by their path under that folder
+(`fallback/wipeout-pulse/Data/XML/Foo.xml` is Pulse's `Data\XML\Foo.xml`), answering only a
+name no disc or DLC holds (after the DLC, before the engine's own fallback; a player's
+`overrides/<title>/` still wins; the first mod in search order wins between mods; a title the
+manifest's `titles` leaves out is ignored). It cannot replace disc data. A mode that loads data
+of its own (Detonator) is offered on a title only where all of it resolves, so such a mod can
+turn a mode on: `oag.detonator-pulse` in `OpenAntiGrav/official-mods` is the worked example.
+A mod with fallback entries counts in the LAN fingerprint (engine ADR-0100), unless its
+manifest says `[mod] network-races = false` (absent: true): then no LAN or online race mounts
+its fallback entries and they do not count. The key governs fallback entries only, not rows,
+strings, effects, tracks, campaigns or modules. A mod with a
 module needs an engine built with the `extensions` feature. No module runs in an
 original campaign or a network race; a race running one is MODDED: it records its inputs and the replay header names the module by id, version and SHA-256 (a replay or a screenshot of the race is rebuilt only with that exact build of the module), and it sets no ghost.
 
