@@ -27,7 +27,7 @@ Starts with `toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/
 `authors`, `license` (SPDX) or `license-file`, `description`, optional `repository`,
 `homepage`, `keywords`, `titles` (a mod whose `titles` leave out the running title is not loaded or offered on it; a texture pack's are filled from its `[games]` serials when absent; slugs: `wipeout-pulse`, `wipeout-pure`, `wipeout-hd`,
 `wipeout-omega-collection`, `wipeout-2048`; empty means any), `needs-titles` (slugs of titles whose
-disc the mod draws from: it loads without one and the MODS page says which is missing; a build that reads only one disc, the web page, does not offer a mod needing another title's), `oag`
+disc the mod draws from: it loads without one and the MODS page says which is missing; a build that reads only one disc, the web page, does not offer a mod needing another title's), `needs-title-count` (2 or more: how many titles' discs the mod needs to be of any use, without naming them, `remix` says 2; only the one-disc web page acts on it, by not offering the mod), `oag`
 (semver requirement),
 `default-enabled` (bool, default `true`; `false` ships the mod off until the player turns it on
 on the MODS page, stored as `[mods] enabled = [id]` in the settings file),
