@@ -27,7 +27,7 @@ Starts with `toml-schema = { location = "https://oag.topaxi.com/mods/schemas/v1/
 `authors`, `license` (SPDX) or `license-file`, `description`, optional `repository`,
 `homepage`, `keywords`, `titles` (a mod whose `titles` leave out the running title is not loaded or offered on it; a texture pack's are filled from its `[games]` serials when absent; slugs: `wipeout-pulse`, `wipeout-pure`, `wipeout-hd`,
 `wipeout-omega-collection`, `wipeout-2048`; empty means any), `needs-titles` (slugs of titles whose
-disc the mod draws from: it loads without one and the MODS page says which is missing), `oag`
+disc the mod draws from: it loads without one and the MODS page says which is missing; a build that reads only one disc, the web page, does not offer a mod needing another title's), `oag`
 (semver requirement),
 `default-enabled` (bool, default `true`; `false` ships the mod off until the player turns it on
 on the MODS page, stored as `[mods] enabled = [id]` in the settings file),
@@ -65,7 +65,8 @@ A mod with fallback entries counts in the LAN fingerprint (engine ADR-0100), unl
 manifest says `[mod] network-races = false` (absent: true): then no LAN or online race mounts
 its fallback entries and they do not count. The key governs fallback entries only, not rows,
 strings, effects, tracks, campaigns or modules. A mod with a
-module needs an engine built with the `extensions` feature. No module runs in an
+module needs an engine built with the `extensions` feature; the web page and iOS have none, and
+list a mod that is only a module (no tracks, campaigns or fallback entries) dimmed, as unavailable. No module runs in an
 original campaign or a network race; a race running one is MODDED: it records its inputs and the replay header names the module by id, version and SHA-256 (a replay or a screenshot of the race is rebuilt only with that exact build of the module), and it sets no ghost.
 
 ## A custom campaign, `campaigns/<id>.toml`
